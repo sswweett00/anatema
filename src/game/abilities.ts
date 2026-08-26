@@ -1,4 +1,5 @@
 import { getPlayer, gameState, type Entity } from '../ecs/world'
+import { nextRandom, randomInt } from './rng'
 
 /*
  * YETENEK SİSTEMİ — SINIRSIZ
@@ -67,7 +68,6 @@ export const ABILITIES: AbilityDef[] = [
   { id:'scholar', name:'Kadim Bilgelik', type:'PASİF', desc:'Seviye deneyim ihtiyacını azaltır.' },
   { id:'warlord', name:'Savaş Lordu', type:'PASİF', desc:'Aktif yetenek cooldownlarını hızlandırır.' },
   { id:'mend', name:'Kor Kalp', type:'PASİF', desc:'Seçildiğinde anlık can yeniler.' },
-
   { id:'meteor', name:'Kıyamet Meteoru', type:'AKTİF', desc:'Gecikmeli telegraph sonrası hedef bölgeye düşen dev meteor; merkezde ağır fiziksel hasar, kenarlarda savurma ve alev alanı bırakır.' },
   { id:'gravitywell', name:'Yerçekimi Kuyusu', type:'AKTİF', desc:'Düşmanları zamana bağlı olarak merkeze çeker; son vuruşta çöküş patlaması oluşturur.' },
   { id:'soulbolts', name:'Ruh İğneleri', type:'AKTİF', desc:'Birden fazla ruh mermisi hedef seçer, düşük canlı hedeflere ekstra hasar verir ve öldürmede zincirlenir.' },
@@ -166,7 +166,6 @@ export const haste = () => {
   if (abilities.adrenaline > 0 && gameState.combo >= 5) h *= Math.max(0.48, 1 - Math.min(gameState.combo, 30) * 0.012 * abilities.adrenaline)
   return h
 }
-
 export const swordDamage = () => 26 + abilities.steel * 12
 export const swordInterval = () => Math.max(0.22, (0.58 - abilities.steel * 0.04) * (hasSynergy('dance') ? Math.pow(0.85, synLevel('dance')) : 1) * (hasSynergy('warmaster') ? Math.pow(0.9, synLevel('warmaster')) : 1) * haste())
 export const swordRange = () => 3.4 + abilities.steel * 0.15
@@ -207,7 +206,6 @@ export const venomDamage = () => 3 + abilities.venom * 2
 export const venomInterval = () => Math.max(1.6, (3.4 - abilities.venom * 0.25) * haste())
 export const venomRadius = () => 2.6 + abilities.venom * 0.35
 export const venomDur = () => 3
-
 export const rageThreshold = () => Math.min(0.95, (hasSynergy('bloodpact') ? 0.85 : 0.7) + synLevel('bloodpact') * 0.01)
 export const rageActive = (p: Entity) => abilities.rage > 0 && p.health < p.maxHealth * rageThreshold()
 export const rageMul = (p: Entity) => rageActive(p) ? 1 + abilities.rage * 0.12 : 1
@@ -227,33 +225,34 @@ export const harvestChance = () => Math.min(0.78, 0.2 + abilities.harvest * 0.05
 export const harvestHeal = () => 4 * healMul()
 export const lastStandHpPct = () => hasSynergy('phoenix') ? 0.7 : 0.4
 export const milestoneHeal = (maxHealth: number) => 10 + abilities.greed * 8 + (hasSynergy('treasury') ? maxHealth * 0.04 * synLevel('treasury') : 0)
-
 export function rollDamage(base: number, p: Entity): { value: number; crit: boolean } {
   let value = (base + ferocityDmg()) * rageMul(p)
   if (abilities.momentum > 0 && Math.hypot(p.velocity.x, p.velocity.z) > 1.5) value *= 1 + Math.min(0.45, abilities.momentum * 0.04) * (hasSynergy('juggernaut') ? synScale('juggernaut', 1.5, 0.1) : 1)
   if (hasSynergy('frenzy') && gameState.combo >= 5) value *= 1 + Math.min(gameState.combo, 30) * 0.01 * synLevel('frenzy')
   if (abilities.berserker > 0 && gameState.combo > 8) value *= 1 + Math.min(0.5, gameState.combo * 0.005 * abilities.berserker)
   const chance = abilities.crit * 0.12 + abilities.precision * 0.015 + (hasSynergy('deadeye') ? 0.1 + 0.02 * synLevel('deadeye') : 0) + (hasSynergy('exec') ? 0.15 + 0.03 * (synLevel('exec') - 1) : 0) + (hasSynergy('reaper') ? 0.2 + 0.05 * (synLevel('reaper') - 1) : 0)
-  if (chance > 0 && Math.random() < Math.min(0.95, chance)) {
+  if (chance > 0 && nextRandom() < Math.min(0.95, chance)) {
     let mul = hasSynergy('exec') ? 3.2 + 0.15 * (synLevel('exec') - 1) : 2.4
     mul += abilities.focus * 0.5 + (hasSynergy('deadeye') ? 0.5 * synLevel('deadeye') : 0)
     return { value: value * mul, crit: true }
   }
   return { value, crit: false }
 }
-
 export const XP_VALUES = [1, 2, 4]
 export const xpForLevel = (level: number) => Math.max(6, Math.floor((8 * Math.pow(level, 1.4) + level * 2) * Math.max(0.45, 1 - abilities.scholar * 0.06)))
 export const xpMultiplier = (combo: number) => (1 + Math.min(combo, 20) * 0.03) * (1 + abilities.magnet * 0.2) * (1 + abilities.soulharvest * 0.03) * (hasSynergy('archivist') ? synScale('archivist', 1.25, 0.08) : 1)
-
 export function rollChoices(): AbilityId[] {
   const pool = ABILITIES.map((a) => a.id)
-  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]] }
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = randomInt(0, i + 1)
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
   return pool.slice(0, 3)
 }
-
 export function applyAbility(id: AbilityId) {
-  abilities[id] += 1
+  const current = abilities[id]
+  if (!Number.isFinite(current) || current < 0) abilities[id] = 0
+  abilities[id] = Math.min(999, abilities[id] + 1)
   const p = getPlayer()
   if (!p) return
   switch (id) {
