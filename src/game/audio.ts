@@ -135,6 +135,16 @@ export const sfx = {
     tone({ freq: 660, dur: 0.16, delay: 0.09, type: 'triangle', vol: 0.1 })
     tone({ freq: 880, dur: 0.24, delay: 0.18, type: 'triangle', vol: 0.09 })
   },
+  levelup() {
+    tone({ freq: 392, dur: 0.12, type: 'triangle', vol: 0.1 })
+    tone({ freq: 523.25, dur: 0.14, delay: 0.08, type: 'triangle', vol: 0.1 })
+    tone({ freq: 659.25, dur: 0.16, delay: 0.16, type: 'triangle', vol: 0.1 })
+    tone({ freq: 783.99, dur: 0.3, delay: 0.24, type: 'triangle', vol: 0.09 })
+  },
+  pick() {
+    tone({ freq: 700, end: 1250, dur: 0.1, type: 'triangle', vol: 0.09 })
+    noise(0.08, 0.04, 2400)
+  },
   die() {
     tone({ freq: 100, end: 26, dur: 1.3, type: 'sawtooth', vol: 0.22 })
     noise(0.9, 0.12, 240)

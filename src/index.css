@@ -178,6 +178,6 @@ canvas {
 
 .vignette {
   background:
-    radial-gradient(ellipse at center, transparent 50%, rgba(4, 2, 1, 0.66) 100%),
-    linear-gradient(180deg, rgba(4, 2, 1, 0.35) 0%, transparent 14%, transparent 86%, rgba(4, 2, 1, 0.4) 100%);
+    radial-gradient(ellipse at center, transparent 58%, rgba(4, 2, 1, 0.4) 100%),
+    linear-gradient(180deg, rgba(4, 2, 1, 0.2) 0%, transparent 12%, transparent 88%, rgba(4, 2, 1, 0.25) 100%);
 }

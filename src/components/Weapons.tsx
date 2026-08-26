@@ -12,6 +12,14 @@ import {
   type Entity,
 } from '../ecs/world'
 import { sfx } from '../game/audio'
+import {
+  abilities,
+  swordDamage,
+  swordInterval,
+  arrowCount,
+  arrowDamage,
+  arrowInterval,
+} from '../game/abilities'
 
 /*
  * KÜL OKLARI — otomatik nişan alan okçu sistemi.
@@ -74,9 +82,6 @@ export default function Weapons() {
     const playing = gameState.phase === 'playing'
 
     if (playing && player) {
-      const tier = gameState.tier
-      const interval = Math.max(0.14, 0.32 - tier * 0.022)
-
       /* ---- en yakın ruh (kılıç da oklar da bunu kullanır) ---- */
       let best: Entity | null = null
       let bestD2 = WEAPON_RANGE * WEAPON_RANGE
@@ -97,7 +102,7 @@ export default function Weapons() {
       /* ---- BÜYÜK KILIÇ: otomatik kavisli savuruş ---- */
       slashTimer.current -= dt
       if (slashTimer.current <= 0) {
-        slashTimer.current = Math.max(0.4, 0.58 - tier * 0.02)
+        slashTimer.current = swordInterval()
         if (best && bestD2 < SLASH_RANGE * SLASH_RANGE) {
           const dx = best.position.x - player.position.x
           const dz = best.position.z - player.position.z
@@ -108,7 +113,7 @@ export default function Weapons() {
           gameState.slashYaw = yaw
           gameState.slashAnim = 1
 
-          const slashDmg = 26 + tier * 10 /* ağır hasar */
+          const slashDmg = swordDamage() /* ağır hasar */
           const R2 = SLASH_RANGE * SLASH_RANGE
           const el = enemies.entities
           for (let i = 0; i < el.length; i++) {
@@ -158,18 +163,18 @@ export default function Weapons() {
         }
       }
 
-      /* ---- KÜL OKLARI: otomatik salvo ---- */
+      /* ---- KÜL OKLARI: yalnızca yetenek seçildiyse ---- */
       fireTimer.current -= dt
       if (fireTimer.current <= 0) {
-        fireTimer.current = interval
+        fireTimer.current = arrowInterval()
 
-        if (best && bullets.entities.length < MAX_BULLETS) {
-          const shots = Math.min(tier, 7)
+        if (abilities.arrows > 0 && best && bullets.entities.length < MAX_BULLETS) {
+          const shots = arrowCount()
           tmp.dir
             .set(best.position.x - player.position.x, 0, best.position.z - player.position.z)
             .normalize()
-          const dmg = 8 + tier * 3
-          const pierce = tier >= 5 ? 2 : 1
+          const dmg = arrowDamage()
+          const pierce = abilities.arrows >= 4 ? 2 : 1
           _origin.copy(player.position)
 
           for (let s = 0; s < shots; s++) {

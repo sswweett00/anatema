@@ -4,6 +4,17 @@ import * as THREE from 'three'
 import { enemies, getPlayer, gameState, spawnBurst } from '../ecs/world'
 import { useInput } from '../hooks/useInput'
 import { sfx } from '../game/audio'
+import {
+  abilities,
+  moveSpeed,
+  armorValue,
+  dashCooldownMax,
+  regenRate,
+  novaDamage,
+  novaRadius,
+  novaCooldown as novaCd,
+  orbitCount,
+} from '../game/abilities'
 
 /*
  * Kül Şövalyesi — izometrik kamera takibi + WASD hareketi.
@@ -44,7 +55,7 @@ export default function Player() {
     /* ekran efektlerinin sönümlenmesi */
     gameState.shake = Math.max(0, gameState.shake - dt * 2.1)
     gameState.damageFlash = Math.max(0, gameState.damageFlash - dt * 2.6)
-    gameState.tierFlash = Math.max(0, gameState.tierFlash - dt * 0.7)
+    gameState.levelFlash = Math.max(0, gameState.levelFlash - dt * 0.7)
     gameState.flashNova = Math.max(0, gameState.flashNova - dt * 2.4)
 
     if (playing) {
@@ -53,6 +64,10 @@ export default function Player() {
         (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0)
       const iy =
         (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0)
+
+      /* yeteneklerden türeyen değerler */
+      p.speed = moveSpeed()
+      p.armor = armorValue()
 
       /* yetenek zamanlayıcıları */
       p.dashCooldown = Math.max(0, (p.dashCooldown ?? 0) - dt)
@@ -79,7 +94,7 @@ export default function Player() {
         p.dashX = dx
         p.dashZ = dz
         p.dashTime = 0.16
-        p.dashCooldown = 1.3
+        p.dashCooldown = dashCooldownMax()
         p.invuln = 0.32
         sfx.dash()
         spawnBurst(p.position, 0xff8a3d, 10, 3.4, 0.4)
@@ -107,12 +122,12 @@ export default function Player() {
       }
       p.position.addScaledVector(p.velocity, dt)
 
-      /* ---- KÜL FIRTINASI: kadran 2+ iken otomatik halka dalgası ---- */
-      if (gameState.tier >= 2 && p.novaCooldown <= 0) {
-        p.novaCooldown = 8
-        const R = 5.6
+      /* ---- KÜL FIRTINASI: yetenek seçildiyse otomatik halka dalgası ---- */
+      if (abilities.nova > 0 && p.novaCooldown <= 0) {
+        p.novaCooldown = novaCd()
+        const R = novaRadius()
         const R2 = R * R
-        const novaDmg = 14 + gameState.tier * 5
+        const novaDmg = novaDamage()
         const el = enemies.entities
         for (let i = 0; i < el.length; i++) {
           const e = el[i]
@@ -148,11 +163,8 @@ export default function Player() {
       /* hasar almadıysa yavaş rejenerasyon */
       p.regenDelay = (p.regenDelay ?? 0) + dt
       if (p.regenDelay > 4) {
-        p.health = Math.min(p.maxHealth, p.health + dt * 3)
+        p.health = Math.min(p.maxHealth, p.health + dt * regenRate())
       }
-
-      /* zırh kadrana göre sertleşir */
-      p.armor = 2 + Math.floor(gameState.tier / 2)
     } else {
       p.velocity.multiplyScalar(Math.exp(-6 * dt))
       p.position.addScaledVector(p.velocity, dt)
@@ -195,7 +207,19 @@ export default function Player() {
       Math.sin(t * 11) * 0.05 * Math.min(1, speedAmt / 4)
     cloak.current.rotation.x =
       0.28 + Math.sin(t * 9) * 0.05 * Math.min(1, speedAmt / 3)
-    orbit.current.rotation.y = t * 2.1
+
+    /* yörünge korları: yetenekle çoğalır, büyür ve hızlanır */
+    const owned = abilities.orbit > 0
+    const visCount = owned ? orbitCount() : 8
+    const cinderScale = owned ? 0.13 : 0.055
+    orbit.current.rotation.y = t * (owned ? 5 : 2.1)
+    for (let i = 0; i < cinderRefs.current.length; i++) {
+      const m = cinderRefs.current[i]
+      if (!m) continue
+      m.visible = i < visCount
+      const s = cinderScale * (1 + Math.sin(t * 6 + i) * 0.2)
+      m.scale.setScalar(s)
+    }
 
     /* ölünce yere seril */
     const fallen = gameState.phase === 'dead' ? Math.PI / 2.2 : 0
@@ -233,12 +257,13 @@ export default function Player() {
 
   const cinders = useMemo(
     () =>
-      Array.from({ length: 6 }, (_, i) => {
-        const a = (i / 6) * Math.PI * 2
-        return [Math.cos(a) * 0.95, Math.sin(a * 3) * 0.12, Math.sin(a) * 0.95] as const
+      Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2
+        return [Math.cos(a) * 1.05, Math.sin(a * 3) * 0.12, Math.sin(a) * 1.05] as const
       }),
     []
   )
+  const cinderRefs = useRef<(THREE.Mesh | null)[]>([])
 
   return (
     <group ref={group}>
@@ -327,8 +352,14 @@ export default function Player() {
         {/* yörünge korları */}
         <group ref={orbit} position={[0, 0.78, 0]}>
           {cinders.map((pos, i) => (
-            <mesh key={i} position={pos as unknown as [number, number, number]}>
-              <octahedronGeometry args={[0.055, 0]} />
+            <mesh
+              key={i}
+              ref={(el) => {
+                cinderRefs.current[i] = el
+              }}
+              position={pos as unknown as [number, number, number]}
+            >
+              <octahedronGeometry args={[1, 0]} />
               <meshBasicMaterial
                 color={i % 2 ? '#ff8a3d' : '#d1662a'}
                 toneMapped={false}

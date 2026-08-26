@@ -6,7 +6,7 @@ import * as THREE from 'three'
 /*  React tarafında oyun verisi için tek bir re-render bile olmaz.     */
 /* ------------------------------------------------------------------ */
 
-export type Phase = 'menu' | 'playing' | 'paused' | 'dead'
+export type Phase = 'menu' | 'playing' | 'paused' | 'dead' | 'levelup'
 
 export type Entity = {
   position: THREE.Vector3
@@ -65,10 +65,13 @@ export const gameState = {
   phase: 'menu' as Phase,
   time: 0,
   kills: 0,
-  tier: 1,
+  level: 1,
+  xp: 0,
+  xpNext: 9,
+  pendingLevelUps: 0,
   shake: 0,
   damageFlash: 0,
-  tierFlash: 0,
+  levelFlash: 0,
   wave: 0,
   waveTimer: 30,
   flashNova: 0,
@@ -279,10 +282,13 @@ export function resetRun() {
   p.facingZ = 1
   gameState.time = 0
   gameState.kills = 0
-  gameState.tier = 1
+  gameState.level = 1
+  gameState.xp = 0
+  gameState.xpNext = 9
+  gameState.pendingLevelUps = 0
   gameState.shake = 0
   gameState.damageFlash = 0
-  gameState.tierFlash = 0
+  gameState.levelFlash = 0
   gameState.wave = 0
   gameState.waveTimer = 30
   gameState.flashNova = 0

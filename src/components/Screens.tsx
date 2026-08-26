@@ -1,6 +1,27 @@
-import { useMemo } from 'react'
-import { Flame, Skull, Swords, Zap, HeartPulse } from 'lucide-react'
-import { gameState } from '../ecs/world'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Flame,
+  Skull,
+  Swords,
+  Zap,
+  HeartPulse,
+  Crosshair,
+  Orbit,
+  Wind,
+  Shield,
+  Heart,
+  Sparkles,
+} from 'lucide-react'
+import { gameState, setPhase } from '../ecs/world'
+import {
+  abilities,
+  getDef,
+  rollChoices,
+  applyAbility,
+  MAX_LVL,
+  type AbilityId,
+} from '../game/abilities'
+import { sfx } from '../game/audio'
 
 /* ---------------- kor tanecikleri (saf CSS) ---------------- */
 
@@ -68,8 +89,8 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
           </div>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-ash md:text-[15px]">
             Pas, imparatorlukları yuttu; geriye goblinler, iskeletler ve balçıktan doğan
-            dehşetler kaldı. Son Kül Şövalyesi olarak halkanı savun — büyük kılıcın kendi
-            savrulur, okların kendi nişan alır, sürü ise her saniye büyür.
+            dehşetler kaldı. Büyük kılıcın kendi savrulur — sen sadece hayatta kal. Ruh
+            kestikçe seviye atla, her seviyede üç güçten birini seç ve kendi kombinasyonunu kur.
           </p>
         </div>
 
@@ -94,21 +115,30 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
                 <span className="ml-1 text-ash">oyunu duraklat</span>
               </div>
               <div className="flex items-center gap-2">
-                <Flame size={14} className="shrink-0 text-ember" />
-                <span className="ml-1 text-ash">kılıç ve oklar en yakın canavara otomatik vurur</span>
+                <Keycap label="1" />
+                <Keycap label="2" />
+                <Keycap label="3" />
+                <span className="ml-1 text-ash">seviye atlayınca yetenek seç</span>
               </div>
             </div>
           </div>
           <div className="p-5">
             <div className="text-[10px] font-extrabold tracking-[0.34em] text-rust">
-              ŞÖVALYENİN GÜÇLERİ
+              ŞÖVALYENİN YOLU
             </div>
             <ul className="mt-3 space-y-2.5 text-[13px] text-ash">
               <li className="flex items-start gap-2">
                 <Swords size={14} className="mt-0.5 shrink-0 text-ember" />
                 <span>
-                  <b className="text-bone">Büyük Kılıç:</b> en yakın canavara kendi savrulur,
+                  <b className="text-bone">Büyük Kılıç</b> en yakın canavara kendi savrulur,
                   çevresindekileri de biçer.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Sparkles size={14} className="mt-0.5 shrink-0 text-ember" />
+                <span>
+                  <b className="text-bone">Seviye atla:</b> aktif ve pasif 3 yetenekten birini
+                  seç; aynı yeteneği üst üste seçip güçlendir, farklılarıyla kombinasyon kur.
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -118,24 +148,10 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <Flame size={14} className="mt-0.5 shrink-0 text-ember" />
-                <span>
-                  <b className="text-bone">Kül Fırtınası:</b> 2. kademeden sonra otomatik halka
-                  dalgası savurur.
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
                 <HeartPulse size={14} className="mt-0.5 shrink-0 text-[#3fae8c]" />
                 <span>
                   <b className="text-bone">Kan Bağı:</b> her kesimde küçük can ve duruş
                   yenilenir.
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Swords size={14} className="mt-0.5 shrink-0 text-ember" />
-                <span>
-                  Her <b className="text-bone">30 kesim</b> kademe atlatır: daha ağır savuruş,
-                  daha çok ok, daha kalın zırh.
                 </span>
               </li>
             </ul>
@@ -153,6 +169,139 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
           <div className="mt-3 text-[10px] tracking-[0.3em] text-ash/70">
             SES İÇİN TIKLA · SÜRÜ BEKLİYOR
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- seviye atlama: yetenek seçimi ---------------- */
+
+const ABILITY_ICONS: Record<AbilityId, typeof Flame> = {
+  steel: Swords,
+  arrows: Crosshair,
+  nova: Flame,
+  orbit: Orbit,
+  heart: HeartPulse,
+  swift: Wind,
+  armor: Shield,
+  mend: Heart,
+}
+
+function AbilityPips({ id }: { id: AbilityId }) {
+  if (id === 'mend') return null
+  const cur = abilities[id]
+  return (
+    <div className="mt-2 flex items-center justify-center gap-1">
+      {Array.from({ length: MAX_LVL }, (_, i) => (
+        <span
+          key={i}
+          className="h-1.5 w-3"
+          style={{
+            background: i < cur ? '#ff8a3d' : '#3a312b',
+            boxShadow: i < cur ? '0 0 6px rgba(255,138,61,0.8)' : 'none',
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+export function LevelUpScreen() {
+  const [choices, setChoices] = useState<AbilityId[]>(() => rollChoices())
+
+  const pick = (id: AbilityId) => {
+    applyAbility(id)
+    sfx.pick()
+    gameState.pendingLevelUps--
+    if (gameState.pendingLevelUps > 0) {
+      setChoices(rollChoices())
+    } else {
+      setPhase('playing')
+    }
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const idx = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code)
+      if (idx >= 0 && choices[idx]) pick(choices[idx])
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [choices])
+
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-[radial-gradient(ellipse_at_center,rgba(20,10,4,0.8)_0%,rgba(11,8,6,0.96)_100%)]">
+      <Embers count={26} />
+      <div className="fade-rise relative mx-4 my-8 w-full max-w-4xl text-center">
+        <div className="text-[11px] font-bold tracking-[0.5em] text-ember">KÜLLER GÜÇLENİYOR</div>
+        <h2
+          className="font-display mt-2 text-5xl font-black tracking-[0.1em] text-bone md:text-6xl"
+          style={{ textShadow: '0 0 40px rgba(255,138,61,0.5)' }}
+        >
+          SEVİYE {gameState.level}
+        </h2>
+        <p className="mt-2 text-sm text-ash">
+          Bir güç seç
+          {gameState.pendingLevelUps > 1 ? ` · ${gameState.pendingLevelUps} seçim kaldı` : ''} —
+          kombinasyonunu kur
+        </p>
+
+        <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {choices.map((id, i) => {
+            const def = getDef(id)
+            const Icon = ABILITY_ICONS[id]
+            const cur = abilities[id]
+            const active = def.type === 'AKTİF'
+            return (
+              <button
+                key={`${id}-${i}`}
+                onClick={() => pick(id)}
+                className="group plate relative flex flex-col items-center px-5 pb-6 pt-7 text-center transition-all duration-150 hover:-translate-y-1.5 hover:brightness-125"
+                style={{ cursor: 'pointer' }}
+              >
+                <div
+                  className="font-display absolute left-3 top-2.5 text-sm font-black"
+                  style={{ color: '#5a4632' }}
+                >
+                  {i + 1}
+                </div>
+                <div
+                  className="absolute right-3 top-3 border px-1.5 py-0.5 text-[8px] font-extrabold tracking-[0.18em]"
+                  style={{
+                    color: active ? '#ff8a3d' : '#5f9484',
+                    borderColor: active ? '#7a4a1a' : '#2c4a3e',
+                  }}
+                >
+                  {def.type}
+                </div>
+                <Icon
+                  size={40}
+                  strokeWidth={1.6}
+                  className="mt-2 transition-transform duration-150 group-hover:scale-110"
+                  style={{ color: active ? '#ff8a3d' : '#8fae9c' }}
+                />
+                <div className="font-display mt-3 text-lg font-black tracking-[0.08em] text-bone">
+                  {def.name.toUpperCase()}
+                </div>
+                {cur > 0 && id !== 'mend' && (
+                  <div className="mt-0.5 text-[10px] font-bold tracking-[0.2em] text-ember">
+                    SV. {cur} → {Math.min(MAX_LVL, cur + 1)}
+                  </div>
+                )}
+                <AbilityPips id={id} />
+                <p className="mt-3 min-h-[3.2em] text-[12.5px] leading-snug text-ash">
+                  {def.desc}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="mt-6 text-[10px] tracking-[0.3em] text-ash/70">
+          <kbd className="kbd">1</kbd> <kbd className="kbd">2</kbd> <kbd className="kbd">3</kbd>{' '}
+          TUŞLARIYLA DA SEÇEBİLİRSİN
         </div>
       </div>
     </div>
@@ -197,9 +346,9 @@ export function DeathScreen({ onRestart }: { onRestart: () => void }) {
             </div>
           </div>
           <div className="p-4">
-            <div className="text-[9px] font-bold tracking-[0.28em] text-ash">KADRAN</div>
+            <div className="text-[9px] font-bold tracking-[0.28em] text-ash">SEVİYE</div>
             <div className="font-display mt-1 text-3xl font-black text-rust">
-              {gameState.tier}
+              {gameState.level}
             </div>
           </div>
         </div>

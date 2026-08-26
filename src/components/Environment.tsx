@@ -143,8 +143,8 @@ function LightRig() {
     const f2 = 0.75 + Math.sin(t * 13 + 2) * 0.15 + Math.sin(t * 19 + 1) * 0.1
     wispA.current.position.set(p.position.x + 1.7, 1.5, p.position.z + 0.9)
     wispB.current.position.set(p.position.x - 1.7, 1.3, p.position.z - 0.9)
-    wispA.current.intensity = 16 * f1
-    wispB.current.intensity = 16 * f2
+    wispA.current.intensity = 24 * f1
+    wispB.current.intensity = 24 * f2
   })
 
   return (
@@ -153,8 +153,8 @@ function LightRig() {
       <primitive object={spotTarget} />
       <directionalLight
         ref={dir}
-        color="#7d93a8"
-        intensity={1.25}
+        color="#b9c8d8"
+        intensity={2.3}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -168,7 +168,7 @@ function LightRig() {
       <spotLight
         ref={spot}
         color="#ff9a55"
-        intensity={300}
+        intensity={430}
         distance={80}
         angle={0.55}
         penumbra={0.8}
@@ -210,7 +210,7 @@ export default function Environment() {
       {/* zemin */}
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
         <planeGeometry args={[540, 540]} />
-        <meshStandardMaterial color="#191410" roughness={0.96} metalness={0} />
+        <meshStandardMaterial color="#33281c" roughness={0.96} metalness={0} />
       </mesh>
 
       {/* ayin halkaları */}
@@ -232,19 +232,19 @@ export default function Environment() {
       {/* mezar taşları */}
       <instancedMesh ref={stoneRef} args={[undefined, undefined, stones.length]} frustumCulled={false} castShadow receiveShadow>
         <boxGeometry args={[0.55, 1, 0.2]} />
-        <meshStandardMaterial color="#2c2620" roughness={0.95} />
+        <meshStandardMaterial color="#4a3d30" roughness={0.95} />
       </instancedMesh>
 
       {/* kayalar */}
       <instancedMesh ref={rockRef} args={[undefined, undefined, rocks.length]} frustumCulled={false} castShadow receiveShadow>
         <dodecahedronGeometry args={[0.6, 0]} />
-        <meshStandardMaterial color="#241f1a" roughness={1} flatShading />
+        <meshStandardMaterial color="#3d332a" roughness={1} flatShading />
       </instancedMesh>
 
       {/* kuru ağaçlar */}
       <instancedMesh ref={treeRef} args={[undefined, undefined, trees.length]} frustumCulled={false} castShadow>
         <coneGeometry args={[0.1, 3.4, 5]} />
-        <meshStandardMaterial color="#17110c" roughness={1} />
+        <meshStandardMaterial color="#2a2018" roughness={1} />
       </instancedMesh>
 
       {/* meşaleler */}
@@ -253,8 +253,8 @@ export default function Environment() {
       ))}
 
       {/* temel ışıklar */}
-      <ambientLight color="#3a2c22" intensity={0.55} />
-      <hemisphereLight args={['#3d3126', '#0b0806', 0.5]} />
+      <ambientLight color="#8a6f52" intensity={1.15} />
+      <hemisphereLight args={['#8d7a5e', '#241a10', 0.95]} />
 
       <LightRig />
     </group>

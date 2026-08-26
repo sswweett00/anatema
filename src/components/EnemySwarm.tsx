@@ -16,6 +16,7 @@ import {
   type Entity,
 } from '../ecs/world'
 import { sfx } from '../game/audio'
+import { abilities, XP_VALUES, xpForLevel, orbitDamage, orbitRadius } from '../game/abilities'
 
 /*
  * SÜRÜ SİSTEMİ — 3 canavar türü, 3 instancedMesh (3 draw-call).
@@ -29,6 +30,7 @@ import { sfx } from '../game/audio'
 const WAVE_EVERY = 28
 const WHITE = new THREE.Color('#ffffff')
 const FLASH = new THREE.Color(3, 3, 3) /* HDR beyaz — vuruş flaşı */
+let orbitTimer = 0
 
 /* ---------------- yardımcılar ---------------- */
 
@@ -340,7 +342,7 @@ export default function EnemySwarm() {
         announce(`SÜRÜ BÜYÜDÜ — DALGA ${gameState.wave}`)
       }
 
-      /* ---- ölümler: merkezî skor / kademe / Kan Bağı ---- */
+      /* ---- ölümler: merkezî skor / XP / Kan Bağı ---- */
       tmp.remove.length = 0
       const list = enemies.entities
       for (let i = 0; i < list.length; i++) {
@@ -349,18 +351,27 @@ export default function EnemySwarm() {
         tmp.remove.push(e)
         gameState.kills++
         const kind = e.enemyKind ?? 0
+        gameState.xp += XP_VALUES[kind]
         spawnBurst(e.position, ENEMY_KINDS[kind].color, kind === 2 ? 12 : 6, 4, 0.65)
         sfx.kill()
         /* Kan Bağı: her kesimde küçük can + duruş yenilenir */
         player.health = Math.min(player.maxHealth, player.health + 0.6)
         player.poise = Math.min(player.maxPoise, player.poise + 8)
-        if (gameState.kills >= gameState.tier * 30 && gameState.tier < 7) {
-          gameState.tier++
-          gameState.tierFlash = 1
-          sfx.tier()
-        }
       }
       for (let i = 0; i < tmp.remove.length; i++) world.remove(tmp.remove[i])
+
+      /* ---- seviye atlamalar ---- */
+      while (gameState.xp >= gameState.xpNext) {
+        gameState.xp -= gameState.xpNext
+        gameState.level++
+        gameState.xpNext = xpForLevel(gameState.level)
+        gameState.pendingLevelUps++
+        gameState.levelFlash = 1
+      }
+      if (gameState.pendingLevelUps > 0 && gameState.phase === 'playing') {
+        sfx.levelup()
+        setPhase('levelup')
+      }
 
       /* ---- hareket + temas ---- */
       tmp.remove.length = 0
@@ -435,6 +446,35 @@ export default function EnemySwarm() {
         }
       }
       for (let i = 0; i < tmp.remove.length; i++) world.remove(tmp.remove[i])
+
+      /* ---- YÖRÜNGE KORLARI: temas halkası hasarı ---- */
+      if (abilities.orbit > 0) {
+        orbitTimer -= dt
+        if (orbitTimer <= 0) {
+          orbitTimer = 0.42
+          const outer = orbitRadius()
+          const outer2 = outer * outer
+          const inner2 = 0.5 * 0.5
+          const dmg = orbitDamage()
+          const el = enemies.entities
+          for (let i = 0; i < el.length; i++) {
+            const e = el[i]
+            if (e.dead) continue
+            const dx = e.position.x - player.position.x
+            const dz = e.position.z - player.position.z
+            const d2 = dx * dx + dz * dz
+            if (d2 < outer2 && d2 > inner2) {
+              e.health -= Math.max(1, dmg - e.armor)
+              e.hitFlash = 1
+              const d = Math.sqrt(d2) || 1
+              e.velocity.x += (dx / d) * 5
+              e.velocity.z += (dz / d) * 5
+              if (e.health <= 0) e.dead = true
+            }
+          }
+          spawnBurst(player.position, 0xff8a3d, 5, 3.4, 0.35)
+        }
+      }
     }
 
     /* ---------------- GPU'ya yaz (tür başına ayrı mesh) ---------------- */

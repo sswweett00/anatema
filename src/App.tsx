@@ -3,13 +3,14 @@ import { Canvas } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
 import { onPhase, setPhase, resetRun, gameState, type Phase } from './ecs/world'
 import { initAudio, sfx } from './game/audio'
+import { resetAbilities } from './game/abilities'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import EnemySwarm from './components/EnemySwarm'
 import Weapons from './components/Weapons'
 import Particles from './components/Particles'
 import HUD from './components/HUD'
-import { StartScreen, DeathScreen, PauseScreen } from './components/Screens'
+import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './components/Screens'
 
 /*
  * Sahne bileşeni memo'lanır: faz değişimlerinde App yeniden render olsa
@@ -18,8 +19,8 @@ import { StartScreen, DeathScreen, PauseScreen } from './components/Screens'
 const Scene = memo(function Scene() {
   return (
     <>
-      <color attach="background" args={['#0b0806']} />
-      <fog attach="fog" args={['#0b0806', 26, 90]} />
+      <color attach="background" args={['#1a140e']} />
+      <fog attach="fog" args={['#1a140e', 34, 120]} />
       <OrthographicCamera makeDefault position={[26, 26, 26]} zoom={42} near={-300} far={500} />
       <Environment />
       <Player />
@@ -49,6 +50,7 @@ export default function App() {
 
   const start = useCallback(() => {
     initAudio()
+    resetAbilities()
     resetRun()
     sfx.start()
     setPhase('playing')
@@ -67,10 +69,11 @@ export default function App() {
       {/* sinematik vinyet */}
       <div className="vignette pointer-events-none absolute inset-0 z-10" />
 
-      {(phase === 'playing' || phase === 'paused') && <HUD />}
+      {(phase === 'playing' || phase === 'paused' || phase === 'levelup') && <HUD />}
       {phase === 'menu' && <StartScreen onStart={start} />}
       {phase === 'dead' && <DeathScreen onRestart={start} />}
       {phase === 'paused' && <PauseScreen />}
+      {phase === 'levelup' && <LevelUpScreen />}
     </div>
   )
 }
