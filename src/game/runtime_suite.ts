@@ -3,8 +3,8 @@ import { resetAdvancedRuntime, startAdvancedRuntime } from './advanced_runtime'
 import { resetMegaSystemsV2, startMegaSystemsV2 } from './mega_systems_v2'
 import { resetMegaCompletion, startMegaCompletion } from './mega_completion'
 import { resetCombatPolish, startCombatPolish } from './combat_polish'
-import { resetRuntimeSafety, startRuntimeSafety } from './runtime_safety'
 import { resetProgressionRuntime, startProgressionRuntime } from './progression_runtime'
+import { resetRuntimeSafety, startRuntimeSafety } from './runtime_safety'
 import { resetEventBridge, startEventBridge } from './event_bridge'
 import { resetEvents } from './events'
 
@@ -16,15 +16,16 @@ type RuntimeSpec = {
   reset: () => void
 }
 
+// Foundation runtimes are started first so consumers never observe a half-built pipeline.
 const RUNTIMES: RuntimeSpec[] = [
+  { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
   { name: 'run-director', start: startRunDirector, reset: resetRunDirector },
   { name: 'advanced-combat', start: startAdvancedRuntime, reset: resetAdvancedRuntime },
   { name: 'mega-systems', start: startMegaSystemsV2, reset: resetMegaSystemsV2 },
   { name: 'mega-completion', start: startMegaCompletion, reset: resetMegaCompletion },
   { name: 'combat-polish', start: startCombatPolish, reset: resetCombatPolish },
-  { name: 'runtime-safety', start: startRuntimeSafety, reset: resetRuntimeSafety },
   { name: 'progression', start: startProgressionRuntime, reset: resetProgressionRuntime },
-  { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
+  { name: 'runtime-safety', start: startRuntimeSafety, reset: resetRuntimeSafety },
 ]
 
 let mounted = false
@@ -72,12 +73,13 @@ export function stopRuntimeSuite(): void {
 }
 
 export function resetRuntimeSuite(): void {
+  // Clear transient events before resetting producers/consumers to avoid replaying stale state.
   resetEvents()
-  for (const runtime of RUNTIMES) {
+  for (let i = RUNTIMES.length - 1; i >= 0; i--) {
     try {
-      runtime.reset()
+      RUNTIMES[i].reset()
     } catch (error) {
-      report(`${runtime.name}:reset`, error)
+      report(`${RUNTIMES[i].name}:reset`, error)
     }
   }
 }
