@@ -22,6 +22,7 @@ import { resetAbilityPassiveCompletion, startAbilityPassiveCompletion } from './
 import { resetQualityRuntime, startQualityRuntime } from './quality_runtime'
 import { resetRunCheckpoint, startRunCheckpoint } from './run_checkpoint'
 import { resetCheckpointPersistence, startCheckpointPersistence } from './checkpoint_persistence'
+import { resetCombatDirectorV2, startCombatDirectorV2 } from './combat_director_v2'
 
 type Stop = () => void
 type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
@@ -41,6 +42,7 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'ability-passive-completion', start: startAbilityPassiveCompletion, reset: resetAbilityPassiveCompletion },
   { name: 'status-effects', start: startStatusRuntime, reset: resetStatusRuntime },
   { name: 'boss-ai', start: startBossAI, reset: resetBossAI },
+  { name: 'combat-director-v2', start: startCombatDirectorV2, reset: resetCombatDirectorV2 },
   { name: 'progression', start: startProgressionRuntime, reset: resetProgressionRuntime },
   { name: 'vfx-events', start: startVfxEventRuntime, reset: resetVfxEventRuntime },
   { name: 'world-services', start: startGameServices, reset: resetGameServices },
