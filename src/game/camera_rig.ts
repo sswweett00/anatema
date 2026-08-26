@@ -36,8 +36,6 @@ export const CAMERA_RIG_CONFIG: CameraRigConfig = {
 const target = new THREE.Vector3()
 const lookTarget = new THREE.Vector3()
 const shake = new THREE.Vector3()
-const axis = new THREE.Vector3(1, 0, 0)
-const quaternion = new THREE.Quaternion()
 const euler = new THREE.Euler()
 
 function damp(current: number, targetValue: number, sharpness: number, dt: number): number {
@@ -107,16 +105,14 @@ export class CameraRig {
     const noiseZ = Math.sin(noiseTime * 29.3 + 1.7) * Math.cos(noiseTime * 17.2)
     shake.set(noiseX, 0, noiseZ).multiplyScalar(this.impact * CAMERA_RIG_CONFIG.shakePosition)
     camera.position.add(shake)
-
     camera.lookAt(this.desiredLook)
+
     if (camera instanceof THREE.OrthographicCamera) {
       camera.zoom = damp(camera.zoom, THREE.MathUtils.clamp(zoomTarget, CAMERA_RIG_CONFIG.minZoom, CAMERA_RIG_CONFIG.maxZoom), 5.5, safeDt)
       camera.updateProjectionMatrix()
     }
 
-    const roll = this.impact * CAMERA_RIG_CONFIG.shakeRotation
-    euler.set(0, 0, roll * Math.sin(noiseTime * 31.3))
-    quaternion.setFromEuler(euler)
-    camera.quaternion.multiply(quaternion)
+    euler.set(0, 0, this.impact * CAMERA_RIG_CONFIG.shakeRotation * Math.sin(noiseTime * 31.3))
+    camera.rotation.z = euler.z
   }
 }
