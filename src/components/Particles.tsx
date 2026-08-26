@@ -2,15 +2,17 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { particles, world } from '../ecs/world'
+import { runtimeQuality } from '../game/performance'
 import { softDotTexture } from '../game/textures'
 
 /*
- * PARÇACIKLAR — yumuşak ışıltılı noktalar (THREE.Points, tek draw-call).
- * Her parçacık kameraya dönük, additif ve renk başına ayarlı.
- * wisp=true olanlar "ruh" gibi yukarı süzülür (kesim efekti).
+ * PARÇACIKLAR — iki GPU draw-call.
+ * Adaptive kalite doğrudan draw-range'e uygulanır; simülasyon yine tam çalışır,
+ * ancak GPU'ya gönderilen parçacık sayısı frame pressure yükseldikçe azalır.
  */
 
 const MAX_P = 900
+const MAX_WISP = 160
 const _color = new THREE.Color()
 
 export default function Particles() {
@@ -58,8 +60,8 @@ export default function Particles() {
   const bigRef = useRef<THREE.Points>(null!)
   const bigGeo = useMemo(() => {
     const geo = new THREE.BufferGeometry()
-    const pos = new Float32Array(160 * 3).fill(-9999)
-    const col = new Float32Array(160 * 3)
+    const pos = new Float32Array(MAX_WISP * 3).fill(-9999)
+    const col = new Float32Array(MAX_WISP * 3)
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage))
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage))
     return geo
@@ -73,19 +75,24 @@ export default function Particles() {
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.05)
     const list = particles.entities
+    const particleBudget = Math.max(180, Math.floor(MAX_P * runtimeQuality.particleScale))
+    const wispBudget = Math.max(40, Math.floor(MAX_WISP * Math.min(1, runtimeQuality.particleScale + 0.15)))
+    material.size = 0.48 + runtimeQuality.particleScale * 0.12
+    bigMaterial.size = 0.95 + runtimeQuality.particleScale * 0.2
+
     let n = 0
     let wn = 0
     const wPos = bigGeo.attributes.position.array as Float32Array
     const wCol = bigGeo.attributes.color.array as Float32Array
 
-    for (let i = 0; i < list.length && n < MAX_P; i++) {
+    for (let i = 0; i < list.length; i++) {
       const pt = list[i]
       pt.life = (pt.life ?? 0) - dt
       if (pt.life <= 0) {
         world.remove(pt)
         continue
       }
-      /* hafif yerçekimi + sürtünme */
+
       pt.velocity.y -= 2.4 * dt
       pt.velocity.multiplyScalar(1 - 1.6 * dt)
       pt.position.addScaledVector(pt.velocity, dt)
@@ -97,20 +104,18 @@ export default function Particles() {
       const f = Math.min(1, (pt.life / (pt.maxLife ?? 0.6)) * 1.6)
       _color.setHex(pt.colorHex ?? 0xffffff).multiplyScalar(f * 1.7)
 
-      if (pt.wisp) {
-        /* ruhlar yukarı süzülür, büyük katmanda çizilir */
-        if (wn < 160) {
-          wPos[wn * 3] = pt.position.x
-          wPos[wn * 3 + 1] = pt.position.y
-          wPos[wn * 3 + 2] = pt.position.z
-          wCol[wn * 3] = _color.r
-          wCol[wn * 3 + 1] = _color.g
-          wCol[wn * 3 + 2] = _color.b
-          wn++
-        }
-        pt.velocity.y += 3.4 * dt /* yukarı it */
+      if (pt.wisp && wn < wispBudget) {
+        wPos[wn * 3] = pt.position.x
+        wPos[wn * 3 + 1] = pt.position.y
+        wPos[wn * 3 + 2] = pt.position.z
+        wCol[wn * 3] = _color.r
+        wCol[wn * 3 + 1] = _color.g
+        wCol[wn * 3 + 2] = _color.b
+        wn++
+        pt.velocity.y += 3.4 * dt
       }
 
+      if (n >= particleBudget) continue
       positions[n * 3] = pt.position.x
       positions[n * 3 + 1] = pt.position.y
       positions[n * 3 + 2] = pt.position.z
