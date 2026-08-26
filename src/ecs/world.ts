@@ -33,6 +33,9 @@ export type Entity = {
   dead?: boolean
   age?: number
   slow?: number
+  wisp?: boolean
+  lastDmg?: number
+  lastCrit?: boolean
   /* mermi */
   life?: number
   maxLife?: number
@@ -83,6 +86,7 @@ export const gameState = {
   combo: 0,
   comboTimer: 0,
   maxCombo: 0,
+  cam: null as THREE.Camera | null,
 }
 
 export function announce(text: string, dur = 2.6) {
@@ -259,6 +263,34 @@ export function spawnBurst(
     }
     world.add(p)
   }
+}
+
+/* kesimde yükselen ruh ışığı */
+export function spawnWisp(pos: THREE.Vector3, colorHex: number) {
+  if (particles.entities.length > 470) return
+  const l = 1.1 + Math.random() * 0.5
+  const p: Entity = {
+    position: new THREE.Vector3(
+      pos.x + (Math.random() - 0.5) * 0.4,
+      pos.y + 0.4 + Math.random() * 0.5,
+      pos.z + (Math.random() - 0.5) * 0.4
+    ),
+    velocity: new THREE.Vector3((Math.random() - 0.5) * 0.7, 2.2 + Math.random(), (Math.random() - 0.5) * 0.7),
+    health: 1,
+    maxHealth: 1,
+    armor: 0,
+    poise: 0,
+    maxPoise: 0,
+    speed: 0,
+    radius: 0.1,
+    isParticle: true,
+    life: l,
+    maxLife: l,
+    colorHex,
+    wisp: true,
+    spin: 0,
+  }
+  world.add(p)
 }
 
 /* ---------------- koşu sıfırlama ---------------- */
