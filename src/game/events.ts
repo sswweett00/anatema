@@ -22,6 +22,7 @@ export type GameplayEventMap = {
   'run:ascend': { tier: number }
   'ability:evolve': { abilityId: string; evolutionId: string; level: number }
   'arena:biome': { biome: string; hazard: string; wave: number }
+  'achievement:unlock': { id: string; title: string }
   'performance:pressure': { pressure: number; fps: number }
   'runtime:error': { system: string; message: string }
 }
@@ -61,7 +62,7 @@ class TypedEventBus {
 export const events = new TypedEventBus()
 
 export function resetEvents(): void {
-  // Event subscriptions are application-lifetime state. There is no queued event state.
+  // Event subscriptions are application lifetime state. There is no queued event state.
 }
 
 export function clearEventListeners(): void {
