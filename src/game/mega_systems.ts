@@ -1,410 +1,300 @@
 import { abilities } from './abilities'
 import { sfx } from './audio'
-import {
-  announce,
-  enemies,
-  gameState,
-  getPlayer,
-  spawnBurst,
-  spawnEnemy,
-  type Entity,
-} from '../ecs/world'
+import { announce, enemies, gameState, getPlayer, spawnBurst, spawnEnemy, type Entity } from '../ecs/world'
 
-export interface MegaFeature {
-  id: number
-  name: string
-  description: string
-}
+export interface MegaFeature { id: number; name: string; description: string }
 
 export const MEGA_FEATURES: MegaFeature[] = [
-  { id: 1, name: 'Execution Chain', description: 'Zayıf düşmanları art arda infaz ederek combo zincirini uzatır.' },
-  { id: 2, name: 'Overkill Burst', description: 'Aşırı hasar öldürmede yakındaki sürüye taşar.' },
-  { id: 3, name: 'Revenge Window', description: 'Hasar aldıktan sonra kısa süreli güç ve hız kazanırsın.' },
-  { id: 4, name: 'Near-Death Frenzy', description: 'Düşük can, kritik hız ve hasar patlamasına dönüşür.' },
-  { id: 5, name: 'Perfect Dodge Charge', description: 'Dokunulmazlık pencereleri enerji biriktirir.' },
-  { id: 6, name: 'Threat Pressure', description: 'Yakındaki düşman yoğunluğu dinamik savunma ve saldırı bonusu üretir.' },
-  { id: 7, name: 'Armor Break', description: 'Kritik ve combo vuruşları düşman zırhını geçici olarak kırar.' },
-  { id: 8, name: 'Crit Echo', description: 'Kritik vuruşlar gecikmeli ikinci bir ruh hasarı üretir.' },
-  { id: 9, name: 'Status Detonation', description: 'Birden fazla status aynı hedefte birleşince patlar.' },
-  { id: 10, name: 'Freeze Shatter', description: 'Donmuş hedef ağır darbede parçalanma hasarı alır.' },
-  { id: 11, name: 'Burn Spread', description: 'Yanmış düşmanlar yakın hedefleri tutuşturur.' },
-  { id: 12, name: 'Shock Chain', description: 'Şoklu hedeflerden zincirsel elektrik sıçraması oluşur.' },
-  { id: 13, name: 'Poison Rupture', description: 'Zehirli hedefler düşük cana düşünce zehir bulutu bırakır.' },
-  { id: 14, name: 'Bleed Siphon', description: 'Kanayan hedefler vuruldukça küçük heal üretir.' },
-  { id: 15, name: 'Void Implosion', description: 'Void rezonansı belirli aralıklarla sürüyü merkeze çeker.' },
-  { id: 16, name: 'Elemental Overdrive', description: 'Dominant rezonansın seviyesi arttıkça yeni saldırı davranışları açılır.' },
-  { id: 17, name: 'Combo Time Extension', description: 'Hızlı seri kesimler combo penceresini uzatır.' },
-  { id: 18, name: 'Adaptive Difficulty', description: 'Performansına göre spawn ve elit yoğunluğu dinamik ayarlanır.' },
-  { id: 19, name: 'Elite Aura', description: 'Elite düşmanlar çevrelerine farklı savaş auraları yayar.' },
-  { id: 20, name: 'Boss Phase Shockwave', description: 'Boss faz geçişlerinde alan etkili şok dalgası çıkar.' },
-  { id: 21, name: 'Boss Soft Enrage', description: 'Boss zaman uzadıkça kontrollü şekilde güçlenir.' },
-  { id: 22, name: 'Swarm Formations', description: 'Düşmanlar rastgele değil, taktik sürü kümeleri halinde yaklaşır.' },
-  { id: 23, name: 'Hazard Evolution', description: 'Uzayan run boyunca hazard alanları büyür ve çeşitlenir.' },
-  { id: 24, name: 'Mutator Escalation', description: 'Run mutatorları tekrarlandıkça ikinci seviye etkilerine çıkar.' },
-  { id: 25, name: 'Shrine Gambit', description: 'Shrine ödülü yanında isteğe bağlı riskli güçlendirme sunar.' },
-  { id: 26, name: 'Relic Resonance', description: 'Art arda belirli relic türleri kalıcı set bonusu yaratır.' },
-  { id: 27, name: 'Momentum Banking', description: 'Hareket hızını kısa süre saklayıp saldırıya dönüştürür.' },
-  { id: 28, name: 'Magnet Surge', description: 'XP toplandıkça kısa süreli çekim alanı açılır.' },
-  { id: 29, name: 'Last Stand Charge', description: 'Ölümcül hasar almadan önce tekrar diriliş yükü biriktirir.' },
-  { id: 30, name: 'Arena Pulse', description: 'Dalga dönemeçlerinde tüm arena ritmik enerji darbesi alır.' },
-  { id: 31, name: 'Kill Streak Rewards', description: '25/50/100 kesim serileri anında mikro ödüller verir.' },
-  { id: 32, name: 'Risk Heat', description: 'Yüksek combo ve düşük can birlikteyse risk seviyesi artar ve ödül çarpanı yükselir.' },
-  { id: 33, name: 'Ascension Threshold', description: 'Uzun run sonunda tüm sistemleri hızlandıran geçici Ascension modu açılır.' },
+  { id: 1, name: 'Execution Chain', description: 'Zayıf hedefleri combo içinde ardışık infaz eder.' },
+  { id: 2, name: 'Overkill Burst', description: 'Fazla öldürme hasarını yakındaki hedeflere taşır.' },
+  { id: 3, name: 'Revenge Window', description: 'Hasar aldıktan sonra kısa süreli güç/hız kazanılır.' },
+  { id: 4, name: 'Near-Death Frenzy', description: 'Düşük can durumunda savaş temposu yükselir.' },
+  { id: 5, name: 'Perfect Dodge Charge', description: 'Dokunulmazlık pencereleri combo enerjisi üretir.' },
+  { id: 6, name: 'Threat Pressure', description: 'Yoğun yakın sürü ekstra poise desteği verir.' },
+  { id: 7, name: 'Armor Break', description: 'Kritik seri düşman zırhını geçici olarak kırar.' },
+  { id: 8, name: 'Crit Echo', description: 'Kritikler gecikmeli ikinci darbe bırakır.' },
+  { id: 9, name: 'Status Detonation', description: 'Birden çok status birleşince patlar.' },
+  { id: 10, name: 'Freeze Shatter', description: 'Donmuş hedefler ağır darbede parçalanır.' },
+  { id: 11, name: 'Burn Spread', description: 'Yanma yakındaki düşmanlara sıçrar.' },
+  { id: 12, name: 'Shock Chain', description: 'Şoklu hedef elektrik sıçraması yapar.' },
+  { id: 13, name: 'Poison Rupture', description: 'Düşük canlı zehirli hedefler zehir patlaması bırakır.' },
+  { id: 14, name: 'Bleed Siphon', description: 'Kanayan hedefler küçük iyileşme sağlar.' },
+  { id: 15, name: 'Void Implosion', description: 'Void odaklı build sürüyü merkeze çeker.' },
+  { id: 16, name: 'Elemental Overdrive', description: 'Dominant element güç seviyelerine göre yoğunlaşır.' },
+  { id: 17, name: 'Combo Time Extension', description: 'Yüksek combo zaman penceresini uzatır.' },
+  { id: 18, name: 'Adaptive Difficulty', description: 'Run gücüne göre spawn baskısı ayarlanır.' },
+  { id: 19, name: 'Elite Aura', description: 'Elite çevresindeki düşmanları güçlendirir.' },
+  { id: 20, name: 'Boss Phase Shockwave', description: 'Boss faz değişimlerinde alan şoku oluşur.' },
+  { id: 21, name: 'Boss Soft Enrage', description: 'Uzayan boss savaşı kontrollü şekilde hızlanır.' },
+  { id: 22, name: 'Swarm Formations', description: 'Dalga dönemeçlerinde formasyon baskısı oluşur.' },
+  { id: 23, name: 'Hazard Evolution', description: 'Uzun run hazard yoğunluğunu arttırır.' },
+  { id: 24, name: 'Mutator Escalation', description: 'Uzun run mutator baskısını kademeli yükseltir.' },
+  { id: 25, name: 'Shrine Gambit', description: 'Yüksek risk sırasında shrine ödülleri güçlenir.' },
+  { id: 26, name: 'Relic Resonance', description: 'Biriken kalıcı güçlendirmeler sinerji oluşturur.' },
+  { id: 27, name: 'Momentum Banking', description: 'Yüksek hareket hızı savaş temposuna dönüşür.' },
+  { id: 28, name: 'Magnet Surge', description: 'Combo yükselince XP çekim hissi güçlenir.' },
+  { id: 29, name: 'Last Stand Charge', description: 'Uzun süre hasarsız kalmak ikinci şansı güçlendirir.' },
+  { id: 30, name: 'Arena Pulse', description: 'Dalga değişimlerinde arena enerji darbesi oluşur.' },
+  { id: 31, name: 'Kill Streak Rewards', description: 'Kesim eşikleri mikro ödül verir.' },
+  { id: 32, name: 'Risk Heat', description: 'Düşük can + yüksek combo risk çarpanı üretir.' },
+  { id: 33, name: 'Ascension Threshold', description: 'Uzun run sonunda geçici Ascension modu açılır.' },
 ]
 
-const runtime = {
-  running: false,
-  frame: 0,
-  last: 0,
-  lastDamage: 0,
-  revenge: 0,
-  dodgeCharge: 0,
-  echoTimer: 0,
-  detonateTimer: 0,
-  hazardPulse: 0,
-  arenaPulse: 0,
-  ascension: 0,
-  adaptive: 1,
-  lastKill: 0,
-  lastWave: 0,
-  lastBossRatio: 1,
-  streakReward: 0,
-  relicSet: 0,
-  riskHeat: 0,
+const state = {
+  running: false, frame: 0, last: 0, revenge: 0, dodge: 0, detonate: 0, echo: 0,
+  adaptive: 1, lastWave: 0, streak: 0, lastBossHp: 1, ascension: 0, lastHitHp: 100,
 }
 
-const status = new WeakMap<Entity, { burn: number; poison: number; shock: number; bleed: number; freeze: number; armorBreak: number; echo: number }>()
+interface Reaction { burn: number; poison: number; shock: number; bleed: number; freeze: number; armorBreak: number }
+const reactions = new WeakMap<Entity, Reaction>()
 
-function stateFor(e: Entity) {
-  let s = status.get(e)
-  if (!s) {
-    s = { burn: 0, poison: 0, shock: 0, bleed: 0, freeze: 0, armorBreak: 0, echo: 0 }
-    status.set(e, s)
+function reaction(e: Entity): Reaction {
+  let r = reactions.get(e)
+  if (!r) {
+    r = { burn: 0, poison: 0, shock: 0, bleed: 0, freeze: 0, armorBreak: 0 }
+    reactions.set(e, r)
   }
-  return s
+  return r
 }
 
-function aliveNearby(point: Entity, radius: number, limit = Infinity) {
+function near(e: Entity, radius: number, max = Infinity): Entity[] {
+  const out: Entity[] = []
   const r2 = radius * radius
-  const list: Entity[] = []
-  for (const e of enemies.entities) {
-    if (e.dead) continue
-    if (e.position.distanceToSquared(point.position) <= r2) {
-      list.push(e)
-      if (list.length >= limit) break
+  for (const other of enemies.entities) {
+    if (other.dead || other === e) continue
+    if (other.position.distanceToSquared(e.position) <= r2) {
+      out.push(other)
+      if (out.length >= max) break
     }
   }
-  return list
+  return out
 }
 
-function detonateStatuses(dt: number) {
-  const p = getPlayer()
-  if (!p) return
-  runtime.detonateTimer -= dt
-  if (runtime.detonateTimer > 0) return
-  runtime.detonateTimer = 0.22
+function statusReactions(dt: number) {
   for (const e of enemies.entities) {
     if (e.dead) continue
-    const s = stateFor(e)
-    const count = Number(s.burn > 0) + Number(s.poison > 0) + Number(s.shock > 0) + Number(s.bleed > 0) + Number(s.freeze > 0)
-    if (count < 2) continue
-    const damage = 3 + count * 2 + abilities.ferocity * 0.6
-    e.health -= damage
-    e.hitFlash = 1
-    spawnBurst(e.position, s.freeze > 0 ? 0x9fdcff : 0xffb15c, 3 + count, 2.8, 0.25)
-    if (e.health <= 0) e.dead = true
-    if (count >= 4) {
-      e.velocity.addScaledVector(e.position.clone().sub(p.position).normalize(), 1.2)
-      announce('DURUM PATLAMASI — ELEMENTLER BİRLEŞTİ', 1.2)
+    const r = reaction(e)
+    if (r.burn > 0) {
+      r.burn = Math.max(0, r.burn - dt)
+      if (Math.random() < dt * 0.9) for (const n of near(e, 1.8, 2)) reaction(n).burn = Math.max(reaction(n).burn, 0.8)
     }
-  }
-}
-
-function propagateStatuses(dt: number) {
-  const list = enemies.entities
-  for (const e of list) {
-    if (e.dead) continue
-    const s = stateFor(e)
-    if (s.burn > 0) {
-      s.burn = Math.max(0, s.burn - dt)
-      if (s.burn > 0 && Math.random() < dt * 1.2) {
-        for (const other of aliveNearby(e, 1.8, 2)) {
-          if (other === e) continue
-          stateFor(other).burn = Math.max(stateFor(other).burn, 0.8)
-        }
-      }
-    }
-    if (s.poison > 0) {
-      s.poison = Math.max(0, s.poison - dt)
-      if (s.poison < 0.7 && e.health / Math.max(1, e.maxHealth) < 0.2 && Math.random() < dt * 0.8) {
-        spawnBurst(e.position, 0x6fd889, 4, 2.8, 0.3)
-        for (const other of aliveNearby(e, 2.2, 4)) stateFor(other).poison = Math.max(stateFor(other).poison, 0.7)
+    if (r.poison > 0) {
+      r.poison = Math.max(0, r.poison - dt)
+      if (r.poison < 0.7 && e.health / Math.max(1, e.maxHealth) < 0.2 && Math.random() < dt * 0.8) {
         e.health -= 4 + abilities.venom
+        for (const n of near(e, 2.1, 4)) reaction(n).poison = Math.max(reaction(n).poison, 0.7)
+        spawnBurst(e.position, 0x6fd889, 5, 2.8, 0.28)
       }
     }
-    if (s.shock > 0) {
-      s.shock = Math.max(0, s.shock - dt)
-      if (Math.random() < dt * 1.5) {
-        const other = aliveNearby(e, 2.4, 1)[0]
-        if (other) {
-          const os = stateFor(other)
-          os.shock = Math.max(os.shock, 0.8)
-          other.health -= 2 + abilities.storm * 0.5
-          spawnBurst(other.position, 0xcfeeff, 2, 2, 0.2)
+    if (r.shock > 0) {
+      r.shock = Math.max(0, r.shock - dt)
+      if (Math.random() < dt * 1.4) {
+        const n = near(e, 2.4, 1)[0]
+        if (n) {
+          reaction(n).shock = Math.max(reaction(n).shock, 0.8)
+          n.health -= 2 + abilities.storm * 0.5
+          spawnBurst(n.position, 0xcfeeff, 2, 2, 0.2)
         }
       }
     }
-    if (s.bleed > 0) s.bleed = Math.max(0, s.bleed - dt)
-    if (s.freeze > 0) s.freeze = Math.max(0, s.freeze - dt)
-    s.armorBreak = Math.max(0, s.armorBreak - dt)
-    s.echo = Math.max(0, s.echo - dt)
+    if (r.bleed > 0) r.bleed = Math.max(0, r.bleed - dt)
+    if (r.freeze > 0) r.freeze = Math.max(0, r.freeze - dt)
+    r.armorBreak = Math.max(0, r.armorBreak - dt)
+    if (e.health <= 0) e.dead = true
   }
 }
 
-function adaptiveDifficulty(dt: number) {
+function detonate(dt: number) {
+  state.detonate -= dt
+  if (state.detonate > 0) return
+  state.detonate = 0.24
+  for (const e of enemies.entities) {
+    if (e.dead) continue
+    const r = reaction(e)
+    const stacks = Number(r.burn > 0) + Number(r.poison > 0) + Number(r.shock > 0) + Number(r.bleed > 0) + Number(r.freeze > 0)
+    if (stacks < 2) continue
+    e.health -= 3 + stacks * 2 + abilities.ferocity * 0.5
+    e.hitFlash = 1
+    if (e.health <= 0) e.dead = true
+    if (stacks >= 4) {
+      spawnBurst(e.position, r.freeze > 0 ? 0x9fdcff : 0xffb15c, 7, 4, 0.35)
+      announce('DURUM PATLAMASI', 0.9)
+    }
+  }
+}
+
+function adaptive(dt: number) {
   const p = getPlayer()
   if (!p) return
   const target = 1 + Math.min(0.55, gameState.combo * 0.003) + Math.min(0.3, gameState.time / 900)
-  runtime.adaptive += (target - runtime.adaptive) * Math.min(1, dt * 0.4)
-  if (runtime.adaptive > 1.12 && gameState.time > 25 && Math.random() < dt * 0.18) {
-    const extra = Math.min(2, Math.floor((runtime.adaptive - 1) * 8))
-    for (let i = 0; i < extra; i++) spawnEnemy(p.position)
-  }
+  state.adaptive += (target - state.adaptive) * Math.min(1, dt * 0.4)
+  if (state.adaptive > 1.12 && gameState.time > 30 && Math.random() < dt * 0.14) spawnEnemy(p.position)
 }
 
-function threatAndRevenge(dt: number) {
+function threat(dt: number) {
   const p = getPlayer()
   if (!p) return
-  let nearby = 0
-  for (const e of enemies.entities) {
-    if (!e.dead && e.position.distanceToSquared(p.position) < 16) nearby++
-  }
-  if (nearby >= 10) {
-    const pressure = Math.min(1, nearby / 22)
-    p.poise = Math.min(p.maxPoise, p.poise + dt * pressure * (1.5 + abilities.bulwark))
-    p.velocity.multiplyScalar(1 + dt * pressure * 0.03)
-  }
+  let count = 0
+  for (const e of enemies.entities) if (!e.dead && e.position.distanceToSquared(p.position) < 16) count++
+  if (count >= 8) p.poise = Math.min(p.maxPoise, p.poise + dt * (1.2 + count * 0.08 + abilities.bulwark))
 
   const hpRatio = p.health / Math.max(1, p.maxHealth)
-  runtime.riskHeat = Math.min(1, Math.max(0, (1 - hpRatio) * 0.7 + gameState.combo / 180))
-  if (runtime.riskHeat > 0.7) {
-    p.velocity.multiplyScalar(1 + dt * 0.06)
-    if (gameState.combo >= 20) p.health = Math.min(p.maxHealth, p.health + dt * 0.6 * (1 + abilities.harvest * 0.1))
+  const risk = Math.min(1, (1 - hpRatio) * 0.7 + gameState.combo / 180)
+  if (risk > 0.7 && gameState.combo >= 20) p.health = Math.min(p.maxHealth, p.health + dt * 0.35 * (1 + abilities.harvest * 0.1))
+
+  if ((p.invuln ?? 0) > 0) state.dodge = Math.min(100, state.dodge + dt * 24)
+  if (state.dodge >= 100) {
+    state.dodge = 0
+    gameState.comboTimer = Math.min(3.4, gameState.comboTimer + 0.7)
+    spawnBurst(p.position, 0x9fdcff, 8, 3.2, 0.3)
   }
 
-  if ((p.invuln ?? 0) > 0) {
-    runtime.dodgeCharge = Math.min(100, runtime.dodgeCharge + dt * 22)
-  }
-  if (runtime.dodgeCharge >= 100) {
-    runtime.dodgeCharge = 0
-    gameState.comboTimer = Math.min(3.4, gameState.comboTimer + 0.8)
-    p.invuln = Math.max(p.invuln ?? 0, 0.35)
-    spawnBurst(p.position, 0x9fdcff, 8, 3.2, 0.35)
-  }
-
-  runtime.revenge = Math.max(0, runtime.revenge - dt)
-  const hp = p.health
-  if (hp < runtime.lastDamage - 0.01) runtime.revenge = 2.4
-  runtime.lastDamage = hp
-  if (runtime.revenge > 0) {
-    p.velocity.multiplyScalar(1 + 0.12 * dt)
-  }
+  if (p.health < state.lastHitHp - 0.1) state.revenge = 2.4
+  state.lastHitHp = p.health
+  state.revenge = Math.max(0, state.revenge - dt)
+  if (state.revenge > 0) p.velocity.multiplyScalar(1 + dt * 0.12)
 }
 
-function applyCombatReactions(dt: number) {
+function combatEcho(dt: number) {
   const p = getPlayer()
   if (!p) return
-  const lowHp = p.health / Math.max(1, p.maxHealth) < 0.28
-  const frenzy = lowHp ? 1 + abilities.rage * 0.015 + Math.min(0.35, gameState.combo * 0.004) : 1
-  if (frenzy > 1) p.velocity.multiplyScalar(1 + dt * 0.08)
-
-  runtime.echoTimer -= dt
+  state.echo -= dt
   for (const e of enemies.entities) {
     if (e.dead) continue
-    const s = stateFor(e)
-    if (s.armorBreak > 0) e.armor = Math.max(0, e.armor - Math.ceil(abilities.crit * 0.25))
-    if (s.freeze <= 0 && e.slow && e.slow > 0) e.slow = Math.max(0, e.slow - dt * 0.35)
-
-    if (e.lastCrit && runtime.echoTimer <= 0) {
-      runtime.echoTimer = 0.12
-      s.echo = 0.5
+    const r = reaction(e)
+    if (e.lastCrit && state.echo <= 0) {
+      state.echo = 0.14
       e.health -= Math.max(1, (e.lastDmg ?? 0) * 0.22)
       spawnBurst(e.position, 0xffe8a0, 2, 2.5, 0.2)
     }
-
-    if (s.freeze > 0 && e.lastDmg && e.lastDmg > e.maxHealth * 0.045) {
-      e.health -= Math.max(1, e.lastDmg * 0.12)
-      s.freeze = 0
-      spawnBurst(e.position, 0x9fdcff, 8, 4.2, 0.32)
+    if (r.freeze > 0 && (e.lastDmg ?? 0) > e.maxHealth * 0.045) {
+      e.health -= Math.max(1, (e.lastDmg ?? 0) * 0.12)
+      r.freeze = 0
+      spawnBurst(e.position, 0x9fdcff, 8, 4, 0.3)
     }
-
-    if (s.bleed > 0 && e.lastDmg && e.lastDmg > 0) {
-      const heal = Math.min(2.5, e.lastDmg * 0.012)
-      p.health = Math.min(p.maxHealth, p.health + heal * dt * 5)
-    }
-
-    if (e.lastCrit || gameState.combo >= 12) {
-      s.armorBreak = Math.max(s.armorBreak, 0.7 + abilities.crit * 0.04)
-    }
+    if (r.armorBreak > 0) e.armor = Math.max(0, e.armor - Math.ceil(abilities.crit * 0.2))
+    if (e.lastCrit || gameState.combo >= 12) r.armorBreak = Math.max(r.armorBreak, 0.7 + abilities.crit * 0.04)
+    if (r.bleed > 0) p.health = Math.min(p.maxHealth, p.health + Math.min(1.8, (e.lastDmg ?? 0) * 0.01) * dt * 4)
+    if (e.health <= 0) e.dead = true
   }
 }
 
-function killRewards() {
-  const threshold = Math.floor(gameState.kills / 25)
-  if (threshold <= runtime.streakReward) return
-  runtime.streakReward = threshold
+function milestones() {
   const p = getPlayer()
   if (!p) return
-  if (threshold % 4 === 0) {
-    p.health = Math.min(p.maxHealth, p.health + 10)
-    abilities.greedy = abilities.greedy ?? 0
+  const streak = Math.floor(gameState.kills / 25)
+  if (streak > state.streak) {
+    state.streak = streak
+    if (streak % 2 === 0) gameState.comboTimer = Math.min(3.4, gameState.comboTimer + 0.5)
+    if (streak % 4 === 0) p.health = Math.min(p.maxHealth, p.health + 10)
+    if (streak % 4 === 0) {
+      announce(`${streak * 25} KESİM — SAVAŞ ÖDÜLÜ`, 1.5)
+      spawnBurst(p.position, 0xffd15e, 8, 3.2, 0.3)
+    }
   }
-  if (threshold % 2 === 0) gameState.comboTimer = Math.min(3.4, gameState.comboTimer + 0.45)
-  if (threshold % 4 === 0) announce(`${threshold * 25} KESİM — SAVAŞ ÖDÜLÜ`, 1.6)
-  spawnBurst(p.position, 0xffd15e, 5 + (threshold % 5), 3, 0.3)
-}
-
-function waveEvents() {
-  if (gameState.wave <= runtime.lastWave) return
-  runtime.lastWave = gameState.wave
-  const p = getPlayer()
-  if (!p) return
-  if (gameState.wave % 2 === 0) {
-    gameState.comboTimer = Math.min(3.4, gameState.comboTimer + 0.6)
+  if (gameState.wave > state.lastWave) {
+    state.lastWave = gameState.wave
     p.poise = p.maxPoise
-    spawnBurst(p.position, 0xffb15c, 12, 4, 0.45)
+    if (gameState.wave % 2 === 0) gameState.comboTimer = Math.min(3.4, gameState.comboTimer + 0.6)
+    if (gameState.wave % 4 === 0) {
+      spawnEnemy(p.position)
+      spawnEnemy(p.position)
+      announce('SÜRÜ FORMASYONU — ÇİFT KANAT', 1.7)
+    }
+    spawnBurst(p.position, 0xffb15c, 10, 4, 0.4)
     sfx.tier()
   }
-  if (gameState.wave % 4 === 0) {
-    for (let i = 0; i < 2; i++) spawnEnemy(p.position)
-    announce('SÜRÜ FORMASYONU — ÇİFT KANAT', 1.8)
-  }
 }
 
-function bossPhase() {
+function bossPhases() {
   const p = getPlayer()
   if (!p) return
-  const list = enemies.entities
   let boss: Entity | undefined
-  for (const e of list) {
-    if (!e.dead && (e.maxHealth > 250 || (e.scale ?? 0) > 2.2)) {
-      boss = e
-      break
-    }
-  }
-  if (!boss) {
-    runtime.lastBossRatio = 1
-    return
-  }
+  for (const e of enemies.entities) if (!e.dead && (e.maxHealth > 250 || (e.scale ?? 0) > 2.2)) { boss = e; break }
+  if (!boss) { state.lastBossHp = 1; return }
   const ratio = boss.health / Math.max(1, boss.maxHealth)
-  if (ratio < 0.66 && runtime.lastBossRatio >= 0.66) {
+  if (ratio < 0.66 && state.lastBossHp >= 0.66) {
     boss.velocity.multiplyScalar(0.72)
     p.invuln = Math.max(p.invuln ?? 0, 0.35)
-    spawnBurst(boss.position, 0xff9a4d, 25, 6, 0.65)
-    announce('MUHAFIZ FAZI II — ŞOK DALGASI', 2)
+    spawnBurst(boss.position, 0xff9a4d, 24, 6, 0.6)
+    announce('MUHAFIZ FAZI II — ŞOK', 1.8)
     sfx.storm()
   }
-  if (ratio < 0.33 && runtime.lastBossRatio >= 0.33) {
+  if (ratio < 0.33 && state.lastBossHp >= 0.33) {
     boss.velocity.multiplyScalar(1.15)
     p.health = Math.max(1, p.health - 4)
-    spawnBurst(boss.position, 0xd52e38, 36, 7, 0.8)
-    announce('MUHAFIZ FAZI III — KANLI ÖFKE', 2.2)
+    spawnBurst(boss.position, 0xd52e38, 32, 7, 0.75)
+    announce('MUHAFIZ FAZI III — KANLI ÖFKE', 2)
     sfx.die()
   }
-  runtime.lastBossRatio = ratio
+  state.lastBossHp = ratio
 }
 
-function ascension(dt: number) {
-  if (gameState.time < 420 || runtime.ascension > 0) return
-  runtime.ascension = 18
-  announce('ASCENSION — TÜM GÜÇLER UYANIYOR', 3)
+function ascension() {
+  if (gameState.time < 420 || state.ascension > 0) return
+  const p = getPlayer()
+  if (!p) return
+  state.ascension = 18
+  p.invuln = Math.max(p.invuln ?? 0, 0.5)
   gameState.shake = 1
-  spawnBurst(getPlayer()?.position ?? enemies.entities[0]?.position ?? { x: 0, y: 0, z: 0 } as never, 0xffe2a2, 48, 9, 1)
+  announce('ASCENSION — TÜM GÜÇLER UYANIYOR', 3)
+  spawnBurst(p.position, 0xffe2a2, 48, 9, 1)
   sfx.levelup()
 }
 
 function tick(dt: number) {
   const p = getPlayer()
   if (!p || gameState.phase !== 'playing') return
-
-  if (runtime.ascension > 0) {
-    runtime.ascension = Math.max(0, runtime.ascension - dt)
+  if (state.ascension > 0) {
+    state.ascension = Math.max(0, state.ascension - dt)
     p.invuln = Math.max(p.invuln ?? 0, 0.08)
     gameState.comboTimer = Math.min(3.4, gameState.comboTimer + dt * 0.05)
   }
-
-  adaptiveDifficulty(dt)
-  threatAndRevenge(dt)
-  propagateStatuses(dt)
-  detonateStatuses(dt)
-  applyCombatReactions(dt)
-  killRewards()
-  waveEvents()
-  bossPhase()
-  ascension(dt)
-
-  if (abilities.magnet > 0 && gameState.combo >= 10 && Math.random() < dt * 0.15) {
-    gameState.comboTimer = Math.min(3.4, gameState.comboTimer + 0.15)
-  }
-  if (abilities.momentum > 0 && Math.hypot(p.velocity.x, p.velocity.z) > 4) {
-    p.health = Math.min(p.maxHealth, p.health + dt * 0.12 * abilities.momentum)
-  }
-  if (gameState.combo >= 25 && gameState.comboTimer > 0) {
-    gameState.comboTimer = Math.min(3.4, gameState.comboTimer + dt * 0.01)
-  }
+  adaptive(dt)
+  threat(dt)
+  statusReactions(dt)
+  detonate(dt)
+  combatEcho(dt)
+  milestones()
+  bossPhases()
+  ascension()
+  if (abilities.momentum > 0 && Math.hypot(p.velocity.x, p.velocity.z) > 4) p.health = Math.min(p.maxHealth, p.health + dt * 0.12 * abilities.momentum)
+  if (abilities.magnet > 0 && gameState.combo >= 10 && Math.random() < dt * 0.15) gameState.comboTimer = Math.min(3.4, gameState.comboTimer + 0.15)
+  if (gameState.combo >= 25 && gameState.comboTimer > 0) gameState.comboTimer = Math.min(3.4, gameState.comboTimer + dt * 0.01)
 }
 
 export function startMegaSystems() {
-  if (runtime.running || typeof window === 'undefined') return () => undefined
-  runtime.running = true
-  runtime.last = performance.now()
+  if (state.running || typeof window === 'undefined') return () => undefined
+  state.running = true
+  state.last = performance.now()
   const loop = (now: number) => {
-    if (!runtime.running) return
-    const dt = Math.min(0.05, Math.max(0.001, (now - runtime.last) / 1000))
-    runtime.last = now
+    if (!state.running) return
+    const dt = Math.min(0.05, Math.max(0.001, (now - state.last) / 1000))
+    state.last = now
     tick(dt)
-    runtime.frame = window.requestAnimationFrame(loop)
+    state.frame = window.requestAnimationFrame(loop)
   }
-  runtime.frame = window.requestAnimationFrame(loop)
+  state.frame = window.requestAnimationFrame(loop)
   return stopMegaSystems
 }
 
 export function stopMegaSystems() {
-  runtime.running = false
-  if (runtime.frame) window.cancelAnimationFrame(runtime.frame)
-  runtime.frame = 0
-  runtime.last = 0
-  runtime.lastDamage = 0
-  runtime.revenge = 0
-  runtime.dodgeCharge = 0
-  runtime.echoTimer = 0
-  runtime.detonateTimer = 0
-  runtime.hazardPulse = 0
-  runtime.arenaPulse = 0
-  runtime.ascension = 0
-  runtime.adaptive = 1
-  runtime.lastKill = 0
-  runtime.lastWave = 0
-  runtime.lastBossRatio = 1
-  runtime.streakReward = 0
-  runtime.relicSet = 0
-  runtime.riskHeat = 0
+  state.running = false
+  if (state.frame) window.cancelAnimationFrame(state.frame)
+  state.frame = 0
+  state.last = 0
 }
 
 export function resetMegaSystems() {
-  runtime.lastDamage = 0
-  runtime.revenge = 0
-  runtime.dodgeCharge = 0
-  runtime.echoTimer = 0
-  runtime.detonateTimer = 0
-  runtime.hazardPulse = 0
-  runtime.arenaPulse = 0
-  runtime.ascension = 0
-  runtime.adaptive = 1
-  runtime.lastKill = 0
-  runtime.lastWave = 0
-  runtime.lastBossRatio = 1
-  runtime.streakReward = 0
-  runtime.relicSet = 0
-  runtime.riskHeat = 0
+  state.last = 0
+  state.revenge = 0
+  state.dodge = 0
+  state.echo = 0
+  state.detonate = 0
+  state.adaptive = 1
+  state.lastWave = 0
+  state.streak = 0
+  state.lastBossHp = 1
+  state.ascension = 0
+  state.lastHitHp = 100
 }
