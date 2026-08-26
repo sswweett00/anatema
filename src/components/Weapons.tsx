@@ -23,6 +23,7 @@ import {
   rollDamage,
 } from '../game/abilities'
 import { SpatialHash } from '../game/spatial'
+import { applyStatus } from '../game/status_runtime'
 
 const MAX_BULLETS = 320
 const WEAPON_RANGE = 22
@@ -34,6 +35,14 @@ const _origin = new THREE.Vector3()
 const weaponSpatial = new SpatialHash(2.6)
 
 type Arc = { life: number; max: number }
+
+function applyWeaponStatuses(target: Entity, sourceElement: 'physical' | 'fire'): void {
+  if (abilities.pyre > 0) applyStatus(target, 'burn', 1 + abilities.pyre * 0.18, sourceElement === 'fire' ? 'fire' : 'physical')
+  if (abilities.venom > 0) applyStatus(target, 'poison', 1 + abilities.venom * 0.16, 'poison')
+  if (abilities.storm > 0) applyStatus(target, 'shock', 1 + abilities.storm * 0.12, 'shock')
+  if (abilities.frost > 0) applyStatus(target, 'freeze', 1, 'ice')
+  if (abilities.armor > 0) applyStatus(target, 'armor_break', Math.max(1, abilities.armor * 0.12), 'void')
+}
 
 export default function Weapons() {
   const meshRef = useRef<THREE.InstancedMesh>(null!)
@@ -54,7 +63,7 @@ export default function Weapons() {
         depthWrite: false,
       }),
     }),
-    []
+    [],
   )
 
   const tmp = useMemo(
@@ -63,7 +72,7 @@ export default function Weapons() {
       dir: new THREE.Vector3(),
       removeBullets: [] as Entity[],
     }),
-    []
+    [],
   )
 
   useLayoutEffect(() => {
@@ -112,6 +121,7 @@ export default function Weapons() {
               e.health -= Math.max(2, roll.value - e.armor)
               e.lastDmg = roll.value
               e.lastCrit = roll.crit
+              applyWeaponStatuses(e, 'physical')
               if (roll.crit) {
                 sfx.crit()
                 spawnBurst(e.position, 0xfff1b8, 6, 4.5, 0.4)
@@ -145,12 +155,12 @@ export default function Weapons() {
             _origin.set(
               player.position.x + (dx / dLen) * 1.6,
               0.4,
-              player.position.z + (dz / dLen) * 1.6
+              player.position.z + (dz / dLen) * 1.6,
             ),
             0xffa14d,
             8,
             3.5,
-            0.4
+            0.4,
           )
         }
       }
@@ -207,6 +217,7 @@ export default function Weapons() {
           e.lastDmg = dmg
           e.lastCrit = false
           e.hitFlash = 1
+          applyWeaponStatuses(e, abilities.pyre > 0 ? 'fire' : 'physical')
           e.velocity.addScaledVector(b.velocity, 0.09)
           sfx.hit()
           spawnBurst(b.position, 0xffa14d, 3, 3, 0.35)
@@ -218,9 +229,7 @@ export default function Weapons() {
         if (spent) tmp.removeBullets.push(b)
       }
 
-      for (let i = 0; i < tmp.removeBullets.length; i++) {
-        world.remove(tmp.removeBullets[i])
-      }
+      for (let i = 0; i < tmp.removeBullets.length; i++) world.remove(tmp.removeBullets[i])
     }
 
     const bl = bullets.entities
@@ -254,32 +263,12 @@ export default function Weapons() {
 
   return (
     <>
-      <instancedMesh
-        ref={(m) => {
-          meshRef.current = m!
-        }}
-        args={[geo, mat, MAX_BULLETS]}
-        frustumCulled={false}
-      />
+      <instancedMesh ref={(m) => { meshRef.current = m! }} args={[geo, mat, MAX_BULLETS]} frustumCulled={false} />
       {Array.from({ length: ARC_POOL }, (_, i) => (
-        <group
-          key={i}
-          visible={false}
-          ref={(el) => {
-            arcRefs.current[i] = el
-          }}
-        >
+        <group key={i} visible={false} ref={(el) => { arcRefs.current[i] = el }}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[1.05, 3.15, 48, 1, -Math.PI / 2 - 1.0, 2.0]} />
-            <meshBasicMaterial
-              color="#ffb15c"
-              transparent
-              opacity={0}
-              side={THREE.DoubleSide}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-              toneMapped={false}
-            />
+            <meshBasicMaterial color="#ffb15c" transparent opacity={0} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
           </mesh>
         </group>
       ))}
