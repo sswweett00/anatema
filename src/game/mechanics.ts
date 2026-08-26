@@ -7,6 +7,7 @@ import {
   ENEMY_KINDS,
   gameState,
   getPlayer,
+  setPhase,
   spawnBurst,
   spawnEnemy,
   type Entity,
@@ -41,7 +42,6 @@ let frameId = 0
 let lastTime = 0
 let lastWave = 0
 let lastLevel = 1
-let lastEventTime = -1
 let lastRelicLevel = 0
 let lastShrineTime = 0
 let currentMutator: RunMutator | null = null
@@ -52,6 +52,7 @@ let bossTimer = 0
 let overdriveTriggered = false
 
 const MUTATORS: RunMutator[] = ['blood_moon', 'ash_storm', 'grave_tide', 'iron_horde', 'wild_magic']
+const MUTATOR_AFFIX: EliteAffix[] = ['berserker', 'vampiric', 'armored', 'splitter', 'frozen', 'volatile']
 
 function statusFor(entity: Entity): Status {
   let status = statuses.get(entity)
@@ -93,15 +94,13 @@ function scaledSpawn(player: Entity, elite = false, boss = false): Entity | unde
   return entity
 }
 
-const MUTATOR_AFFIX: EliteAffix[] = ['berserker', 'vampiric', 'armored', 'splitter', 'frozen', 'volatile']
-
 function announceMutator(mutator: RunMutator) {
   const labels: Record<RunMutator, string> = {
     blood_moon: 'KANLI AY — DÜŞMANLAR ÇILGINCA HIZLANDI',
-    ash_storm: 'KÜL FIRTINASI — EKRAN TEHLİKEYLE DARALIYOR',
+    ash_storm: 'KÜL FIRTINASI — KORLAR GÖRÜŞÜ BOĞUYOR',
     grave_tide: 'MEZAR GELGİTİ — SÜRÜ SIKLAŞTI',
     iron_horde: 'DEMİR SÜRÜ — ZIRHLI DÜŞMANLAR ÇOĞALIYOR',
-    wild_magic: 'VAHŞİ BÜYÜ — ELEMENTAL HASET ALEVLENİYOR',
+    wild_magic: 'VAHŞİ BÜYÜ — ELEMENTAL HASAR SAPITTI',
   }
   announce(labels[mutator], 4)
   sfx.wave()
@@ -401,8 +400,9 @@ function applyGlobalMutator(dt: number) {
     case 'blood_moon':
       for (const e of enemies.entities) {
         if (!e.dead) {
-          e.speed *= 1 + Math.min(0.025, dt * 0.18)
-          e.damage = (e.damage ?? 0) + dt * 0.55
+          const base = ENEMY_KINDS[e.enemyKind ?? 0]
+          e.speed = Math.max(e.speed, base.speed * 1.28)
+          e.damage = Math.max(e.damage ?? 0, base.dmg * 1.35)
         }
       }
       break
@@ -436,7 +436,6 @@ function resetState() {
   currentMutator = null
   lastWave = 0
   lastLevel = 1
-  lastEventTime = -1
   lastRelicLevel = 0
   lastShrineTime = 0
   hazardTimer = 0
@@ -472,6 +471,8 @@ export function startRunDirector() {
       const p = getPlayer()
       if (p && p.health <= 0) {
         p.health = 0
+        setPhase('dead')
+        sfx.die()
       }
     }
 
