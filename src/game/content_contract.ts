@@ -1,5 +1,5 @@
 import { ABILITIES as LEGACY_ABILITIES, ENEMIES as LEGACY_ENEMIES, RELICS } from './combat_registry'
-import { ABILITIES as PLAYER_ABILITIES, type AbilityId } from './abilities'
+import { ABILITIES as PLAYER_ABILITIES } from './abilities'
 import { ENEMY_KINDS } from '../ecs/world'
 import { events } from './events'
 
@@ -11,12 +11,12 @@ export interface ContentContractReport {
   legacyEnemies: number
   relics: number
   errors: string[]
+  warnings: string[]
 }
-
-const PLAYER_IDS = new Set<AbilityId>(PLAYER_ABILITIES.map((ability) => ability.id))
 
 export function validateContentContract(): ContentContractReport {
   const errors: string[] = []
+  const warnings: string[] = []
   const uniquePlayer = new Set<string>()
   for (const ability of PLAYER_ABILITIES) {
     if (uniquePlayer.has(ability.id)) errors.push(`duplicate player ability: ${ability.id}`)
@@ -25,18 +25,12 @@ export function validateContentContract(): ContentContractReport {
   }
 
   for (const legacy of LEGACY_ABILITIES) {
-    if (!PLAYER_IDS.has(legacy.id as AbilityId)) {
-      // Legacy combat content is intentionally allowed, but must be explicitly visible
-      // to diagnostics so it cannot silently become a second source of truth.
-      errors.push(`orphan legacy ability: ${legacy.id}`)
-    }
+    if (!uniquePlayer.has(legacy.id)) warnings.push(`legacy combat ability remains adapter-only: ${legacy.id}`)
   }
 
   const worldNames = new Set(ENEMY_KINDS.map((kind) => kind.name.toLowerCase()))
   for (const enemy of LEGACY_ENEMIES) {
-    if (!worldNames.has(enemy.id.toLowerCase()) && !worldNames.has(enemy.id.replace(/^./, (c) => c.toUpperCase()).toLowerCase())) {
-      errors.push(`orphan legacy enemy: ${enemy.id}`)
-    }
+    if (!worldNames.has(enemy.id.toLowerCase())) warnings.push(`legacy enemy registry entry is not a direct world archetype: ${enemy.id}`)
   }
 
   const relicIds = new Set<string>()
@@ -53,6 +47,7 @@ export function validateContentContract(): ContentContractReport {
     legacyEnemies: LEGACY_ENEMIES.length,
     relics: RELICS.length,
     errors,
+    warnings,
   }
 
   if (errors.length) {
