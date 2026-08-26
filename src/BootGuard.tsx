@@ -32,6 +32,19 @@ function CrashScreen({ error, onRetry }: { error: Error; onRetry: () => void }) 
   )
 }
 
+function GraphicsRecoveryScreen({ onReload }: { onReload: () => void }) {
+  return (
+    <main role="status" aria-live="polite" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'grid', placeItems: 'center', padding: 24, boxSizing: 'border-box', background: 'rgba(11,8,6,.94)', color: '#f4eadf', fontFamily: 'system-ui, sans-serif' }}>
+      <section style={{ width: 'min(620px, 100%)', padding: 28, border: '1px solid #5a3a22', background: '#16100c', boxShadow: '0 0 50px rgba(0,0,0,.45)', textAlign: 'center' }}>
+        <div style={{ color: '#ff8a3d', letterSpacing: '.22em', fontSize: 12, fontWeight: 800 }}>GRAFİK BAĞLAMI</div>
+        <h1 style={{ margin: '10px 0 8px', fontSize: 28 }}>Grafikler yeniden bağlanıyor…</h1>
+        <p style={{ margin: '0 auto 18px', maxWidth: 520, opacity: 0.78, lineHeight: 1.6 }}>GPU bağlamı kısa süreli olarak kayboldu. Tarayıcı bağlamı geri getirirse oyun otomatik olarak devam edecektir.</p>
+        <button type="button" onClick={onReload} style={{ border: '1px solid #8a4a2a', background: '#2a1608', color: '#ffe9d2', padding: '11px 18px', cursor: 'pointer', fontWeight: 800 }}>SAHNEYİ YENİDEN BAŞLAT</button>
+      </section>
+    </main>
+  )
+}
+
 class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null }
   static getDerivedStateFromError(error: Error): State { return { error } }
@@ -44,6 +57,7 @@ class ErrorBoundary extends Component<Props, State> {
 
 function RuntimeGuardInner({ children }: Props) {
   const [fatal, setFatal] = useState<Error | null>(null)
+  const [graphicsLost, setGraphicsLost] = useState(false)
   const fatalRef = useRef(false)
 
   useEffect(() => {
@@ -57,12 +71,23 @@ function RuntimeGuardInner({ children }: Props) {
     }
     const onError = (event: ErrorEvent) => { console.error('[ANATHEMA] Uncaught runtime error', event.error ?? event.message); fail(toError(event.error ?? event.message, 'Bilinmeyen runtime hatası')) }
     const onRejection = (event: PromiseRejectionEvent) => { console.error('[ANATHEMA] Unhandled promise rejection', event.reason); fail(toError(event.reason, 'Unhandled promise rejection')) }
-    const onContextLost = (event: Event) => { event.preventDefault(); fail(new Error('WebGL grafik bağlamı kayboldu. GPU bağlamı kurtarılamadı.')) }
+
+    const onContextLost = (event: Event) => {
+      event.preventDefault()
+      console.warn('[ANATHEMA] WebGL context lost; waiting for browser restoration')
+      setGraphicsLost(true)
+    }
+    const onContextRestored = () => {
+      console.info('[ANATHEMA] WebGL context restored')
+      setGraphicsLost(false)
+    }
 
     const bindCanvas = (canvas: HTMLCanvasElement | null) => {
       if (!canvas) return
-      canvas.addEventListener('webglcontextlost', onContextLost, { once: true })
+      canvas.addEventListener('webglcontextlost', onContextLost)
+      canvas.addEventListener('webglcontextrestored', onContextRestored)
       cleanups.push(() => canvas.removeEventListener('webglcontextlost', onContextLost))
+      cleanups.push(() => canvas.removeEventListener('webglcontextrestored', onContextRestored))
     }
 
     const rootCanvas = document.querySelector('canvas') as HTMLCanvasElement | null
@@ -99,6 +124,7 @@ function RuntimeGuardInner({ children }: Props) {
   }, [])
 
   if (fatal) return <CrashScreen error={fatal} onRetry={() => window.location.reload()} />
+  if (graphicsLost) return <><>{children}</><GraphicsRecoveryScreen onReload={() => window.location.reload()} /></>
   return <>{children}</>
 }
 
