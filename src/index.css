@@ -1,1 +1,183 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: "Cinzel", "Times New Roman", serif;
+  --font-body: "Alegreya Sans", "Segoe UI", Tahoma, sans-serif;
+
+  --color-bone: #e6dcc8;
+  --color-ash: #9a8c74;
+  --color-rust: #d1662a;
+  --color-ember: #ff8a3d;
+  --color-blood: #7a1f14;
+  --color-danger: #c22e1f;
+  --color-iron: #2a2320;
+  --color-void: #0b0806;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #0b0806;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-bone);
+  -webkit-font-smoothing: antialiased;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+::selection {
+  background: rgba(209, 102, 42, 0.5);
+  color: #ffe9d2;
+}
+
+/* ---------- HUD levhaları (pahlanmış demir) ---------- */
+
+.plate {
+  background: linear-gradient(160deg, rgba(32, 24, 17, 0.92), rgba(14, 10, 7, 0.94));
+  border: 1px solid #4a331f;
+  box-shadow:
+    inset 0 0 20px rgba(0, 0, 0, 0.65),
+    0 4px 16px rgba(0, 0, 0, 0.5);
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  color: #e6dcc8;
+  background: linear-gradient(180deg, #3a312b, #1c1611);
+  border: 1px solid #5a4632;
+  box-shadow:
+    inset 0 1px 0 rgba(230, 220, 200, 0.15),
+    0 2px 0 #000;
+}
+
+/* ---------- kor düğmesi ---------- */
+
+.btn-rust {
+  position: relative;
+  background: linear-gradient(180deg, #a33d18 0%, #7a2c12 100%);
+  border: 1px solid #d1662a;
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%,
+    0 14px
+  );
+  box-shadow:
+    0 0 34px rgba(209, 102, 42, 0.4),
+    inset 0 1px 0 rgba(255, 205, 150, 0.3);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.btn-rust:hover {
+  filter: brightness(1.22);
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 52px rgba(255, 138, 61, 0.55),
+    inset 0 1px 0 rgba(255, 205, 150, 0.35);
+}
+
+.btn-rust:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+/* ---------- yükselen korlar ---------- */
+
+.ember {
+  position: absolute;
+  bottom: -12px;
+  border-radius: 50%;
+  background: #ff8a3d;
+  box-shadow: 0 0 8px 2px rgba(255, 138, 61, 0.55);
+  opacity: 0;
+  animation-name: emberRise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes emberRise {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(var(--drift, 0px), -108vh) scale(0.35);
+    opacity: 0;
+  }
+}
+
+/* ---------- giriş / ölüm perdeleri ---------- */
+
+.fade-rise {
+  animation: fadeRise 0.7s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+@keyframes fadeRise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- düşük can nabzı ---------- */
+
+.lowhp-pulse {
+  animation: lowhp 1.1s ease-in-out infinite;
+}
+
+@keyframes lowhp {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ---------- sinematik vinyet ---------- */
+
+.vignette {
+  background:
+    radial-gradient(ellipse at center, transparent 50%, rgba(4, 2, 1, 0.66) 100%),
+    linear-gradient(180deg, rgba(4, 2, 1, 0.35) 0%, transparent 14%, transparent 86%, rgba(4, 2, 1, 0.4) 100%);
+}
