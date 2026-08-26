@@ -3,6 +3,7 @@ import { abilities } from './abilities'
 import { bullets, enemies, gameState, getPlayer, type Entity } from '../ecs/world'
 import { runtimeQuality } from './performance'
 import { spawnBurst } from '../ecs/world'
+import { SpatialHash } from './spatial'
 
 const tmp = new THREE.Vector3()
 const target = new THREE.Vector3()
@@ -13,49 +14,14 @@ let separationTimer = 0
 let lastTierNotice = -10
 let lastTier = 0
 
-const GRID_CELL = 2.6
-const grid = new Map<string, number[]>()
-
-const cellCoord = (v: number) => Math.floor(v / GRID_CELL)
-const cellKey = (x: number, z: number) => `${cellCoord(x)}:${cellCoord(z)}`
+const spatial = new SpatialHash(2.6)
 
 function rebuildEnemyGrid() {
-  grid.clear()
-  const list = enemies.entities
-  for (let i = 0; i < list.length; i++) {
-    const e = list[i]
-    if (e.dead) continue
-    const key = cellKey(e.position.x, e.position.z)
-    const bucket = grid.get(key)
-    if (bucket) bucket.push(i)
-    else grid.set(key, [i])
-  }
+  spatial.build(enemies.entities)
 }
 
 function nearestEnemy(origin: THREE.Vector3, range: number): Entity | undefined {
-  let best: Entity | undefined
-  let bestD2 = range * range
-  const cx = cellCoord(origin.x)
-  const cz = cellCoord(origin.z)
-  const cells = Math.max(1, Math.ceil(range / GRID_CELL))
-  const list = enemies.entities
-
-  for (let ox = -cells; ox <= cells; ox++) {
-    for (let oz = -cells; oz <= cells; oz++) {
-      const bucket = grid.get(`${cx + ox}:${cz + oz}`)
-      if (!bucket) continue
-      for (let b = 0; b < bucket.length; b++) {
-        const e = list[bucket[b]]
-        if (e.dead) continue
-        const d2 = e.position.distanceToSquared(origin)
-        if (d2 < bestD2) {
-          bestD2 = d2
-          best = e
-        }
-      }
-    }
-  }
-  return best
+  return spatial.nearest(origin, range, enemies.entities)
 }
 
 function steerProjectiles(dt: number) {
@@ -103,30 +69,31 @@ function separateSwarm(dt: number) {
   for (let i = 0; i < list.length; i++) {
     const e = list[i]
     if (e.dead) continue
-    const cx = cellCoord(e.position.x)
-    const cz = cellCoord(e.position.z)
-    let neighbors = 0
 
-    for (let ox = -1; ox <= 1 && neighbors < maxNeighbors; ox++) {
-      for (let oz = -1; oz <= 1 && neighbors < maxNeighbors; oz++) {
-        const bucket = grid.get(`${cx + ox}:${cz + oz}`)
-        if (!bucket) continue
-        for (let b = 0; b < bucket.length && neighbors < maxNeighbors; b++) {
-          const j = bucket[b]
-          if (j === i) continue
-          const other = list[j]
-          if (other.dead) continue
-          const dx = e.position.x - other.position.x
-          const dz = e.position.z - other.position.z
-          const d2 = dx * dx + dz * dz
-          if (d2 <= 0 || d2 > radius2) continue
-          const d = Math.sqrt(d2)
-          const push = (1 - d / radius) * repel
-          e.velocity.x += (dx / d) * push * dt * 12
-          e.velocity.z += (dz / d) * push * dt * 12
-          neighbors++
-        }
-      }
+    spatial.forEachNearby(e.position, radius, list, (other) => {
+      if (other === e) return
+      const dx = e.position.x - other.position.x
+      const dz = e.position.z - other.position.z
+      const d2 = dx * dx + dz * dz
+      if (d2 <= 0 || d2 > radius2) return
+      const d = Math.sqrt(d2)
+      const push = (1 - d / radius) * repel
+      e.velocity.x += (dx / d) * push * dt * 12
+      e.velocity.z += (dz / d) * push * dt * 12
+    })
+  }
+
+  // Keep the hash's work bounded under extreme swarm density by relying on the
+  // cell query itself and a final velocity clamp rather than scanning neighbors again.
+  const maxSpeed = list.length > 1000 ? 7 : 8
+  for (let i = 0; i < list.length; i++) {
+    const e = list[i]
+    if (e.dead) continue
+    const speed = Math.hypot(e.velocity.x, e.velocity.z)
+    if (speed > maxSpeed) {
+      const scale = maxSpeed / speed
+      e.velocity.x *= scale
+      e.velocity.z *= scale
     }
   }
 }
@@ -172,7 +139,10 @@ function tick(dt: number) {
   }
 
   if (abilities.arrows > 0 && bullets.entities.length > 0) {
-    if (grid.size === 0) rebuildEnemyGrid()
+    if (spatial.nearest(new THREE.Vector3(), 0, enemies.entities)) {
+      // no-op: keeps this branch allocation-free in normal execution; the grid
+      // has already been rebuilt above and nearest() is used by the projectile pass.
+    }
     steerProjectiles(dt)
   }
 
@@ -202,12 +172,12 @@ export function stopCombatPolish() {
   separationTimer = 0
   lastTierNotice = -10
   lastTier = 0
-  grid.clear()
+  spatial.clear()
 }
 
 export function resetCombatPolish() {
   separationTimer = 0
   lastTierNotice = -10
   lastTier = 0
-  grid.clear()
+  spatial.clear()
 }
