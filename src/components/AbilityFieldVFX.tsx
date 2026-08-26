@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { abilities, type AbilityId, ABILITIES, MEND_DEF } from '../game/abilities'
 import { getPlayer, gameState } from '../ecs/world'
 
-const IDS = [...ABILITIES.map((ability) => ability.id), MEND_DEF.id] as AbilityId[]
+const IDS = [...new Set([...ABILITIES.map((ability) => ability.id), MEND_DEF.id])] as AbilityId[]
 const ACTIVE = new Set<AbilityId>([
   'arrows','nova','orbit','chain','storm','frost','vortex','spikes','pyre','phantom','venom',
   'meteor','gravitywell','soulbolts','bladestorm','arcanemine','bloodnova','voidrift','mirrors','wolfpack','seismic','runeprison','frostfire',
@@ -24,7 +24,6 @@ const PALETTE: Partial<Record<AbilityId, number>> = {
   conduit:0x83ffd1, detonation:0xffa15a, fortunesfavor:0xffd965, lifeforge:0xff8b62, aegis:0xbad5ff,
   hemocraft:0xb81f3a, celerity:0x91f6df, deathsmark:0x7b2c44, soulharvest:0xc8a2ff,
 }
-
 const FALLBACK_PALETTE = 0xc8b7a6
 const PROFILE: Partial<Record<AbilityId, { radius: number; height: number; speed: number }>> = {
   meteor:{radius:3.0,height:1.2,speed:1.0}, gravitywell:{radius:3.1,height:0.25,speed:0.8}, soulbolts:{radius:2.0,height:0.9,speed:3.0},
@@ -45,7 +44,7 @@ const coreGeo = new THREE.OctahedronGeometry(0.09,0)
 function fallbackColor(id: AbilityId): number {
   let h = 2166136261
   for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619)
-  return ((h & 0xff) << 16) | (((h >>> 8) & 0xff) << 8) | (h >>> 16 & 0xff)
+  return ((h & 0xff) << 16) | (((h >>> 8) & 0xff) << 8) | ((h >>> 16) & 0xff)
 }
 
 export default function AbilityFieldVFX() {
@@ -54,7 +53,6 @@ export default function AbilityFieldVFX() {
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const color = useMemo(() => new THREE.Color(), [])
   const initializedColors = useRef(false)
-
   const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent:true, opacity:0.7, toneMapped:false, blending:THREE.AdditiveBlending, depthWrite:false }), [])
   const coreMat = useMemo(() => new THREE.MeshBasicMaterial({ transparent:true, opacity:0.9, toneMapped:false, blending:THREE.AdditiveBlending, depthWrite:false }), [])
 
@@ -64,7 +62,6 @@ export default function AbilityFieldVFX() {
     const t = state.clock.elapsedTime
     const moving = Math.hypot(player.velocity.x, player.velocity.z)
     const combo = Math.min(1, gameState.combo / 40)
-
     for (let i = 0; i < IDS.length; i++) {
       const id = IDS[i]
       const level = abilities[id]
@@ -76,7 +73,6 @@ export default function AbilityFieldVFX() {
         rings.current.setMatrixAt(i,dummy.matrix); cores.current.setMatrixAt(i,dummy.matrix)
         continue
       }
-
       const p = PROFILE[id] ?? DEFAULT_PROFILE
       const angle = t * p.speed + i * (Math.PI * 2 / IDS.length)
       const slot = 1.8 + (i % 5) * 0.62
@@ -86,28 +82,17 @@ export default function AbilityFieldVFX() {
       const active = ACTIVE.has(id)
       const pulse = 1 + Math.sin(t * (3.2 + p.speed) + i) * 0.045
       const boost = active ? 1 + combo * 0.22 + moving * 0.018 : 0.82 + combo * 0.08
-
       dummy.position.set(player.position.x+lx,0.06+p.height*0.28+Math.sin(t*p.speed+i)*0.035,player.position.z+lz)
       dummy.rotation.set(Math.PI*0.5,angle*0.3,angle)
       dummy.scale.setScalar(p.radius*levelScale*pulse*boost)
       dummy.updateMatrix(); rings.current.setMatrixAt(i,dummy.matrix)
-
       dummy.position.set(player.position.x+lx,p.height+0.18+Math.sin(t*p.speed+i)*0.08,player.position.z+lz)
       dummy.rotation.set(t*p.speed,angle,-t*0.7)
       dummy.scale.setScalar((0.65+Math.min(2.2,level*0.055))*(active?1.15:0.8)*(1+Math.sin(t*5.5+i)*0.12))
       dummy.updateMatrix(); cores.current.setMatrixAt(i,dummy.matrix)
-
-      if (!initializedColors.current) {
-        color.setHex(PALETTE[id] ?? fallbackColor(id) ?? FALLBACK_PALETTE)
-        rings.current.setColorAt(i,color); cores.current.setColorAt(i,color)
-      }
+      if (!initializedColors.current) { color.setHex(PALETTE[id] ?? fallbackColor(id) ?? FALLBACK_PALETTE); rings.current.setColorAt(i,color); cores.current.setColorAt(i,color) }
     }
-
-    if (!initializedColors.current) {
-      initializedColors.current=true
-      if (rings.current.instanceColor) rings.current.instanceColor.needsUpdate=true
-      if (cores.current.instanceColor) cores.current.instanceColor.needsUpdate=true
-    }
+    if (!initializedColors.current) { initializedColors.current=true; if (rings.current.instanceColor) rings.current.instanceColor.needsUpdate=true; if (cores.current.instanceColor) cores.current.instanceColor.needsUpdate=true }
     rings.current.instanceMatrix.needsUpdate=true
     cores.current.instanceMatrix.needsUpdate=true
   })
