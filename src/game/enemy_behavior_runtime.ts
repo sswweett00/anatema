@@ -1,16 +1,13 @@
 import * as THREE from 'three'
 import { enemies, gameState, getPlayer, type Entity } from '../ecs/world'
+import { onSimulationTick } from './simulation_clock'
 
 const radial = new THREE.Vector3()
 const tangent = new THREE.Vector3()
-
-let running = false
-let frame = 0
-let last = 0
 let accumulator = 0
+let unsubscribe: (() => void) | undefined
 
 const STEP = 1 / 15
-const MAX_STEP = 0.12
 
 function finite(value: number, fallback = 0): number {
   return Number.isFinite(value) ? value : fallback
@@ -29,15 +26,12 @@ function isBoss(entity: Entity): boolean {
 
 function steer(enemy: Entity, player: Entity, dt: number): void {
   if (enemy.dead) return
-
   radial.subVectors(player.position, enemy.position)
   radial.y = 0
   const distance = radial.length()
   if (!Number.isFinite(distance) || distance < 1e-4) return
   radial.multiplyScalar(1 / distance)
-
-  tangent.set(-radial.z, 0, radial.x)
-  tangent.multiplyScalar(stableOrbitSign(enemy))
+  tangent.set(-radial.z, 0, radial.x).multiplyScalar(stableOrbitSign(enemy))
 
   const healthRatio = Math.max(0, Math.min(1, enemy.health / Math.max(1, enemy.maxHealth)))
   const boss = isBoss(enemy)
@@ -58,8 +52,9 @@ function steer(enemy: Entity, player: Entity, dt: number): void {
     enemy.velocity.z += (tangent.z * desiredTangent + radial.z * desiredRadial) * dt
 
     if (!boss && healthRatio < 0.22 && distance < 5.2) {
-      enemy.velocity.x -= radial.x * (0.8 + (0.22 - healthRatio) * 2.2) * dt
-      enemy.velocity.z -= radial.z * (0.8 + (0.22 - healthRatio) * 2.2) * dt
+      const escape = 0.8 + (0.22 - healthRatio) * 2.2
+      enemy.velocity.x -= radial.x * escape * dt
+      enemy.velocity.z -= radial.z * escape * dt
     }
     return
   }
@@ -72,43 +67,31 @@ function steer(enemy: Entity, player: Entity, dt: number): void {
 function step(dt: number): void {
   const player = getPlayer()
   if (!player || gameState.phase !== 'playing') return
-
   const list = enemies.entities
   if (list.length === 0) return
-
   const stride = list.length > 1000 ? 2 : 1
-  for (let i = 0; i < list.length; i += stride) {
-    steer(list[i], player, dt)
+  for (let i = 0; i < list.length; i += stride) steer(list[i], player, dt)
+}
+
+function onTick(dt: number): void {
+  accumulator += dt
+  if (accumulator > STEP * 3) accumulator = STEP * 3
+  while (accumulator >= STEP) {
+    step(STEP)
+    accumulator -= STEP
   }
 }
 
 export function startEnemyBehaviorRuntime(): () => void {
-  if (running || typeof window === 'undefined') return stopEnemyBehaviorRuntime
-  running = true
-  last = performance.now()
+  if (unsubscribe) return stopEnemyBehaviorRuntime
   accumulator = 0
-
-  const loop = (now: number) => {
-    if (!running) return
-    const elapsed = Math.min(MAX_STEP, Math.max(0, (now - last) / 1000))
-    last = now
-    accumulator = Math.min(accumulator + elapsed, STEP * 3)
-    while (accumulator >= STEP) {
-      step(STEP)
-      accumulator -= STEP
-    }
-    frame = window.requestAnimationFrame(loop)
-  }
-
-  frame = window.requestAnimationFrame(loop)
+  unsubscribe = onSimulationTick(onTick)
   return stopEnemyBehaviorRuntime
 }
 
 export function stopEnemyBehaviorRuntime(): void {
-  running = false
-  if (typeof window !== 'undefined' && frame) window.cancelAnimationFrame(frame)
-  frame = 0
-  last = 0
+  unsubscribe?.()
+  unsubscribe = undefined
   accumulator = 0
 }
 
