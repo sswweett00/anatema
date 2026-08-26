@@ -6,6 +6,9 @@ import { initAudio, sfx } from './game/audio'
 import { resetAbilities } from './game/abilities'
 import { loadProfile, recordRun, type Profile, type QualityPreset } from './game/profile'
 import { PerformanceController, type PerformanceSnapshot } from './game/performance'
+import { samplePerformance } from './game/performance_governor'
+import { validateCombatContent } from './game/content_validation'
+import { diagnosticsJson } from './game/diagnostics'
 import { resetRuntimeSuite, startRuntimeSuite } from './game/runtime_suite'
 import Environment from './components/Environment'
 import Player from './components/Player'
@@ -37,6 +40,7 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
 
   useFrame((_, dt) => {
     const snapshot = controller.current.sample(dt, enemies.entities.length)
+    samplePerformance(snapshot.fps, Math.max(0.05, dt))
     lastReport.current += dt
     if (lastReport.current >= 0.5) {
       lastReport.current = 0
@@ -103,7 +107,11 @@ export default function App() {
   })
   const runRecorded = useRef(false)
 
-  useEffect(() => startRuntimeSuite(), [])
+  useEffect(() => {
+    const validation = validateCombatContent()
+    if (!validation.valid) console.error('[ANATHEMA] combat content validation failed', validation.errors)
+    return startRuntimeSuite()
+  }, [])
 
   useEffect(() => onPhase((next) => {
     setPh(next)
@@ -139,6 +147,15 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const diagnostics = () => diagnosticsJson()
+    ;(window as Window & { __ANATEMA_DIAGNOSTICS__?: () => string }).__ANATEMA_DIAGNOSTICS__ = diagnostics
+    return () => {
+      delete (window as Window & { __ANATEMA_DIAGNOSTICS__?: () => string }).__ANATEMA_DIAGNOSTICS__
+    }
   }, [])
 
   const start = useCallback(() => {
