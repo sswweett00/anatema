@@ -1,28 +1,29 @@
 import { events } from './events'
 import { gameState, getPlayer, spawnBurst } from '../ecs/world'
 import { nextRandom } from './rng'
+import { onSimulationTick } from './simulation_clock'
 
 type Biome = {
   id: string
   name: string
   hazard: 'embers' | 'frost' | 'void' | 'blood' | 'storm'
-  enemyBias: number
   damageMultiplier: number
   speedMultiplier: number
   color: number
 }
 
 const BIOMES: readonly Biome[] = [
-  { id: 'ash_wastes', name: 'Kül Çölü', hazard: 'embers', enemyBias: 0, damageMultiplier: 1, speedMultiplier: 1, color: 0xff8a3d },
-  { id: 'frozen_crypt', name: 'Donmuş Mahzen', hazard: 'frost', enemyBias: 0.15, damageMultiplier: 1.05, speedMultiplier: 0.94, color: 0x9ed8ff },
-  { id: 'void_cathedral', name: 'Hiçlik Katedrali', hazard: 'void', enemyBias: 0.22, damageMultiplier: 1.16, speedMultiplier: 1.03, color: 0x9b73ff },
-  { id: 'blood_mire', name: 'Kan Bataklığı', hazard: 'blood', enemyBias: 0.3, damageMultiplier: 1.22, speedMultiplier: 1.1, color: 0xff496b },
-  { id: 'storm_ruins', name: 'Fırtına Harabeleri', hazard: 'storm', enemyBias: 0.38, damageMultiplier: 1.3, speedMultiplier: 1.16, color: 0x7ec8ff },
+  { id: 'ash_wastes', name: 'Kül Çölü', hazard: 'embers', damageMultiplier: 1, speedMultiplier: 1, color: 0xff8a3d },
+  { id: 'frozen_crypt', name: 'Donmuş Mahzen', hazard: 'frost', damageMultiplier: 1.05, speedMultiplier: 0.94, color: 0x9ed8ff },
+  { id: 'void_cathedral', name: 'Hiçlik Katedrali', hazard: 'void', damageMultiplier: 1.16, speedMultiplier: 1.03, color: 0x9b73ff },
+  { id: 'blood_mire', name: 'Kan Bataklığı', hazard: 'blood', damageMultiplier: 1.22, speedMultiplier: 1.1, color: 0xff496b },
+  { id: 'storm_ruins', name: 'Fırtına Harabeleri', hazard: 'storm', damageMultiplier: 1.3, speedMultiplier: 1.16, color: 0x7ec8ff },
 ] as const
 
 let activeIndex = 0
-let lastAnnounced = -1
+let lastWave = -1
 let hazardTimer = 0
+let unsubscribe: (() => void) | undefined
 
 function biomeIndexForWave(wave: number): number {
   return Math.min(BIOMES.length - 1, Math.floor(Math.max(0, wave - 1) / 4))
@@ -34,9 +35,9 @@ export function currentBiome(): Biome {
 
 function activate(index: number): void {
   const normalized = Math.max(0, Math.min(BIOMES.length - 1, index))
-  if (normalized === activeIndex && lastAnnounced === gameState.wave) return
+  if (normalized === activeIndex && lastWave === gameState.wave) return
   activeIndex = normalized
-  lastAnnounced = gameState.wave
+  lastWave = gameState.wave
   const biome = BIOMES[activeIndex]
   events.emit('arena:biome', { biome: biome.id, hazard: biome.hazard, wave: gameState.wave })
   const p = getPlayer()
@@ -54,13 +55,13 @@ function tickHazard(dt: number): void {
 
   switch (biome.hazard) {
     case 'embers':
-      if (nextRandom() < 0.65) p.regenDelay = Math.max(p.regenDelay ?? 0, 0.4)
+      p.regenDelay = Math.max(p.regenDelay ?? 0, 0.45)
       break
     case 'frost':
-      if ((p.invuln ?? 0) <= 0) p.velocity.multiplyScalar(0.92)
+      if ((p.invuln ?? 0) <= 0) p.velocity.multiplyScalar(0.93)
       break
     case 'void':
-      p.invuln = Math.max(p.invuln ?? 0, 0.12)
+      gameState.shake = Math.min(1, gameState.shake + 0.03)
       break
     case 'blood':
       p.health = Math.min(p.maxHealth, p.health + Math.max(0.25, p.maxHealth * 0.004))
@@ -72,17 +73,25 @@ function tickHazard(dt: number): void {
   }
 }
 
-export function startBiomeRuntime(): () => void {
-  return () => undefined
-}
-
-export function tickBiomeRuntime(dt: number): void {
+function tick(dt: number): void {
   activate(biomeIndexForWave(gameState.wave))
   tickHazard(dt)
 }
 
+export function startBiomeRuntime(): () => void {
+  if (unsubscribe) return stopBiomeRuntime
+  unsubscribe = onSimulationTick(tick)
+  return stopBiomeRuntime
+}
+
+export function stopBiomeRuntime(): void {
+  unsubscribe?.()
+  unsubscribe = undefined
+}
+
 export function resetBiomeRuntime(): void {
+  stopBiomeRuntime()
   activeIndex = 0
-  lastAnnounced = -1
+  lastWave = -1
   hazardTimer = 0
 }
