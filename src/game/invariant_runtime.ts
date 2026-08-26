@@ -1,4 +1,4 @@
-import { bullets, enemies, gameState, getPlayer, particles, players, world } from '../ecs/world'
+import { bullets, enemies, gameState, getPlayer, particles, players } from '../ecs/world'
 import { events } from './events'
 
 let timer = 0
@@ -12,12 +12,21 @@ export interface InvariantReport {
   particleCount: number
 }
 
+function finiteVector(entity: { position: { x: number; y: number; z: number }; velocity: { x: number; y: number; z: number } }): boolean {
+  return Number.isFinite(entity.position.x)
+    && Number.isFinite(entity.position.y)
+    && Number.isFinite(entity.position.z)
+    && Number.isFinite(entity.velocity.x)
+    && Number.isFinite(entity.velocity.y)
+    && Number.isFinite(entity.velocity.z)
+}
+
 function repairFinite(): number {
   let violations = 0
   const collections = [enemies.entities, bullets.entities, particles.entities]
   for (const list of collections) {
     for (const entity of list) {
-      if (!entity.position.isFinite() || !entity.velocity.isFinite()) {
+      if (!finiteVector(entity)) {
         entity.position.set(0, 0, 0)
         entity.velocity.set(0, 0, 0)
         violations++
@@ -107,9 +116,9 @@ export function startInvariantRuntime() {
   last = performance.now()
   const loop = (now: number) => {
     if (!running) return
-    const dt = (now - last) / 1000
+    const dt = Math.max(0, (now - last) / 1000)
     last = now
-    timer += Math.max(0, dt)
+    timer += dt
     if (timer >= 0.5) {
       timer = 0
       verifyInvariants()
