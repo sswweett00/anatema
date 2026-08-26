@@ -92,7 +92,13 @@ export function updateProfile(mutator: (profile: Profile) => void): Profile {
   const profile = loadProfile()
   mutator(profile)
   saveProfile(profile)
-  window.dispatchEvent(new CustomEvent('anatema:profile', { detail: profile }))
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new CustomEvent('anatema:profile', { detail: profile }))
+    } catch {
+      // CustomEvent/window can be unavailable in non-browser test environments.
+    }
+  }
   return profile
 }
 
@@ -121,7 +127,7 @@ export function toggleReducedMotion(): Profile {
 }
 
 export function formatDuration(seconds: number): string {
-  const total = Math.max(0, Math.floor(seconds))
+  const total = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0))
   const minutes = Math.floor(total / 60)
   const rest = total % 60
   return `${minutes}:${rest.toString().padStart(2, '0')}`
