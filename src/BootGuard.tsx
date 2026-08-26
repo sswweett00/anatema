@@ -51,12 +51,33 @@ function RuntimeGuardInner({ children }: Props) {
       console.error('[ANATHEMA] Unhandled promise rejection', event.reason)
       setFatal(event.reason instanceof Error ? event.reason : new Error(String(event.reason ?? 'Promise rejection')))
     }
+    const onContextLost = (event: Event) => {
+      event.preventDefault()
+      setFatal(new Error('WebGL grafik bağlamı kayboldu. Tarayıcı GPU bağlamını yeniden başlatamadı.'))
+    }
 
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
+
+    const canvas = document.querySelector('canvas')
+    canvas?.addEventListener('webglcontextlost', onContextLost, { once: true })
+
+    const testCanvas = document.createElement('canvas')
+    const webgl = testCanvas.getContext('webgl2') ?? testCanvas.getContext('webgl') ?? testCanvas.getContext('experimental-webgl')
+    if (!webgl) {
+      setFatal(new Error('Bu tarayıcıda kullanılabilir WebGL desteği bulunamadı.'))
+    }
+
+    const watchdog = window.setTimeout(() => {
+      const appCanvas = document.querySelector('canvas')
+      if (!appCanvas && !fatal) setFatal(new Error('3D sahne zamanında oluşturulamadı.'))
+    }, 9000)
+
     return () => {
       window.removeEventListener('error', onError)
       window.removeEventListener('unhandledrejection', onRejection)
+      canvas?.removeEventListener('webglcontextlost', onContextLost)
+      window.clearTimeout(watchdog)
     }
   }, [])
 
