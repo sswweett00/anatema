@@ -6,7 +6,6 @@ import { resetCombatPolish, startCombatPolish } from './combat_polish'
 import { resetProgressionRuntime, startProgressionRuntime } from './progression_runtime'
 import { resetRuntimeSafety, startRuntimeSafety } from './runtime_safety'
 import { resetEventBridge, startEventBridge } from './event_bridge'
-import { resetEvents } from './events'
 
 type Stop = () => void
 
@@ -32,7 +31,7 @@ let mounted = false
 let stops: Stop[] = []
 
 function report(name: string, error: unknown): void {
-  console.error(`[ANATEMA] runtime '${name}' devre dışı bırakıldı`, error)
+  console.error(`[ANATHEMA] runtime '${name}' devre dışı bırakıldı`, error)
 }
 
 export function startRuntimeSuite(): Stop {
@@ -73,8 +72,8 @@ export function stopRuntimeSuite(): void {
 }
 
 export function resetRuntimeSuite(): void {
-  // Clear transient events before resetting producers/consumers to avoid replaying stale state.
-  resetEvents()
+  // Event subscriptions belong to application lifetime, not a single run.
+  // Individual runtimes clear their own transient state below.
   for (let i = RUNTIMES.length - 1; i >= 0; i--) {
     try {
       RUNTIMES[i].reset()
