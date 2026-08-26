@@ -11,12 +11,15 @@ import { resetBossAI, startBossAI } from './boss_ai'
 import { resetInvariantRuntime, startInvariantRuntime } from './invariant_runtime'
 import { resetVfxEventRuntime, startVfxEventRuntime } from './vfx_event_runtime'
 import { resetWaveDirector, startWaveDirector } from './wave_director'
+import { resetInputAssist, startInputAssist } from './input_assist'
+import { resetPerformanceGovernor } from './performance_governor'
 
 type Stop = () => void
 type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
 
 const RUNTIMES: RuntimeSpec[] = [
   { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
+  { name: 'input-assist', start: startInputAssist, reset: resetInputAssist },
   { name: 'run-director', start: startRunDirector, reset: resetRunDirector },
   { name: 'wave-director', start: startWaveDirector, reset: resetWaveDirector },
   { name: 'advanced-combat', start: startAdvancedRuntime, reset: resetAdvancedRuntime },
@@ -42,22 +45,16 @@ export function startRuntimeSuite(): Stop {
   if (mounted) return stopRuntimeSuite
   mounted = true
   stops = []
-
   for (const runtime of RUNTIMES) {
     try {
       const stop = runtime.start()
       stops.push(() => {
-        try {
-          stop()
-        } catch (error) {
-          report(`${runtime.name}:stop`, error)
-        }
+        try { stop() } catch (error) { report(`${runtime.name}:stop`, error) }
       })
     } catch (error) {
       report(runtime.name, error)
     }
   }
-
   return stopRuntimeSuite
 }
 
@@ -65,22 +62,15 @@ export function stopRuntimeSuite(): void {
   if (!mounted) return
   mounted = false
   for (let i = stops.length - 1; i >= 0; i--) {
-    try {
-      stops[i]()
-    } catch (error) {
-      report('suite:stop', error)
-    }
+    try { stops[i]() } catch (error) { report('suite:stop', error) }
   }
   stops = []
 }
 
 export function resetRuntimeSuite(): void {
+  resetPerformanceGovernor()
   for (let i = RUNTIMES.length - 1; i >= 0; i--) {
-    try {
-      RUNTIMES[i].reset()
-    } catch (error) {
-      report(`${RUNTIMES[i].name}:reset`, error)
-    }
+    try { RUNTIMES[i].reset() } catch (error) { report(`${RUNTIMES[i].name}:reset`, error) }
   }
 }
 
