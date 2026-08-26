@@ -30,6 +30,8 @@ export const MOTION_CONFIG: MotionConfig = {
 
 const tmp = new THREE.Vector3()
 const offset = new THREE.Vector3()
+const FIXED_DT = 1 / 120
+const MAX_STEPS_PER_FRAME = 8
 
 function finite(value: number, fallback = 0): number {
   return Number.isFinite(value) ? value : fallback
@@ -133,7 +135,7 @@ function sanitizeEntity(entity: Entity): void {
 }
 
 function tickMotion(dt: number): void {
-  const safeDt = Math.min(0.05, Math.max(0.001, dt))
+  const safeDt = Math.min(FIXED_DT, Math.max(0.0001, dt))
   stepRigidBodyContacts(safeDt)
 
   const player = getPlayer()
@@ -149,17 +151,31 @@ function tickMotion(dt: number): void {
 let running = false
 let frame = 0
 let last = 0
+let accumulator = 0
 
 export function startMotionRuntime() {
   if (running || typeof window === 'undefined') return stopMotionRuntime
   running = true
   last = performance.now()
+  accumulator = 0
+
   const loop = (now: number) => {
     if (!running) return
-    tickMotion(Math.min(0.05, Math.max(0.001, (now - last) / 1000)))
+
+    const elapsed = Math.min(0.1, Math.max(0, (now - last) / 1000))
     last = now
+    accumulator = Math.min(accumulator + elapsed, FIXED_DT * MAX_STEPS_PER_FRAME)
+
+    let steps = 0
+    while (accumulator >= FIXED_DT && steps < MAX_STEPS_PER_FRAME) {
+      tickMotion(FIXED_DT)
+      accumulator -= FIXED_DT
+      steps++
+    }
+
     frame = window.requestAnimationFrame(loop)
   }
+
   frame = window.requestAnimationFrame(loop)
   return stopMotionRuntime
 }
@@ -169,6 +185,7 @@ export function stopMotionRuntime() {
   if (frame) window.cancelAnimationFrame(frame)
   frame = 0
   last = 0
+  accumulator = 0
 }
 
 export function resetMotionRuntime() {
