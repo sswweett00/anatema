@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { enemies, getPlayer, gameState } from '../ecs/world'
+import { getPlayer, gameState } from '../ecs/world'
 import { abilities, hasSynergy } from '../game/abilities'
 
 const MOTES = 96
@@ -65,7 +65,7 @@ export default function AbilityVFX() {
     return { geometry, positions, colors }
   }, [])
 
-  const { moteMaterial, auraMaterial, ringMaterial, trailGeometry, trailMaterial } = useMemo(() => {
+  const { moteMaterial, trailGeometry, trailMaterial } = useMemo(() => {
     const texture = new THREE.CanvasTexture(makeSoftTexture())
     texture.colorSpace = THREE.SRGBColorSpace
     return {
@@ -79,22 +79,6 @@ export default function AbilityVFX() {
         blending: THREE.AdditiveBlending,
         sizeAttenuation: true,
       }),
-      auraMaterial: new THREE.MeshBasicMaterial({
-        color: '#ff8a3d',
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-      }),
-      ringMaterial: new THREE.MeshBasicMaterial({
-        color: '#ffb15c',
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-      }),
       trailGeometry: new THREE.IcosahedronGeometry(0.055, 0),
       trailMaterial: new THREE.MeshBasicMaterial({
         color: '#ffb15c',
@@ -106,11 +90,10 @@ export default function AbilityVFX() {
     }
   }, [])
 
-  const lastPosition = useRef(new THREE.Vector3())
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const color = useMemo(() => new THREE.Color(), [])
 
-  useFrame((state, dt) => {
+  useFrame((state) => {
     const player = getPlayer()
     if (!player) return
     const t = state.clock.elapsedTime
@@ -119,43 +102,36 @@ export default function AbilityVFX() {
     const intensity = Math.min(1, ownedCount / 10)
     const moving = Math.hypot(player.velocity.x, player.velocity.z)
     const comboBoost = Math.min(0.5, gameState.combo * 0.012)
-
-    /* Central aura: passive stack creates a readable silhouette around the hero. */
     const primary = owned[0] ?? ABILITY_PALETTE.steel
+
     color.setHex(primary)
-    if (glowRef.current) {
-      glowRef.current.scale.setScalar(1.65 + intensity * 0.55 + Math.sin(t * 4.2) * 0.07)
-      const material = glowRef.current.material as THREE.MeshBasicMaterial
-      material.color.copy(color)
-      material.opacity = 0.06 + intensity * 0.08 + comboBoost * 0.15
-    }
-    if (pulseRef.current) {
-      pulseRef.current.position.copy(player.position).setY(0.08)
-      const s = 0.8 + intensity * 0.25 + moving * 0.025 + Math.sin(t * 7) * 0.04
-      pulseRef.current.scale.setScalar(Math.max(0.35, s))
-      const material = pulseRef.current.material as THREE.MeshBasicMaterial
-      material.color.copy(color)
-      material.opacity = Math.min(0.24, 0.07 + intensity * 0.05 + comboBoost * 0.15)
-    }
+    glowRef.current.scale.setScalar(1.65 + intensity * 0.55 + Math.sin(t * 4.2) * 0.07)
+    const glowMaterial = glowRef.current.material as THREE.MeshBasicMaterial
+    glowMaterial.color.copy(color)
+    glowMaterial.opacity = 0.06 + intensity * 0.08 + comboBoost * 0.15
 
-    if (ringRef.current) {
-      ringRef.current.position.copy(player.position).setY(0.03)
-      const spin = t * (0.35 + ownedCount * 0.04)
-      ringRef.current.rotation.z = spin
-      ringRef.current.rotation.x = -Math.PI / 2
-      ringRef.current.scale.setScalar(1.15 + Math.sin(t * 2.6) * 0.04 + (hasSynergy('dance') ? 0.12 : 0))
-      const material = ringRef.current.material as THREE.MeshBasicMaterial
-      material.color.copy(color)
-      material.opacity = 0.10 + Math.min(0.12, ownedCount * 0.008)
-    }
+    pulseRef.current.position.copy(player.position).setY(0.08)
+    pulseRef.current.scale.setScalar(Math.max(0.35, 0.8 + intensity * 0.25 + moving * 0.025 + Math.sin(t * 7) * 0.04))
+    const pulseMaterial = pulseRef.current.material as THREE.MeshBasicMaterial
+    pulseMaterial.color.copy(color)
+    pulseMaterial.opacity = Math.min(0.24, 0.07 + intensity * 0.05 + comboBoost * 0.15)
 
-    /* Orbit motes: each acquired ability gets a small orbital signature. */
+    ringRef.current.position.copy(player.position).setY(0.03)
+    ringRef.current.rotation.z = t * (0.35 + ownedCount * 0.04)
+    ringRef.current.scale.setScalar(1.15 + Math.sin(t * 2.6) * 0.04 + (hasSynergy('dance') ? 0.12 : 0))
+    const ringMaterial = ringRef.current.material as THREE.MeshBasicMaterial
+    ringMaterial.color.copy(color)
+    ringMaterial.opacity = 0.10 + Math.min(0.12, ownedCount * 0.008)
+
     const pos = points.positions
     const col = points.colors
+    const ids = Object.keys(abilities)
     for (let i = 0; i < MOTES; i++) {
       const abilityIndex = ownedCount ? i % ownedCount : 0
+      const abilityId = ids.find((id) => abilities[id as keyof typeof abilities] > 0) ?? 'steel'
       const c = owned[abilityIndex] ?? primary
-      const orbit = 1.0 + (abilityIndex % 6) * 0.32 + Math.min(1.2, abilities[Object.keys(abilities)[abilityIndex] as keyof typeof abilities] * 0.08)
+      const level = abilityId in abilities ? abilities[abilityId as keyof typeof abilities] : 0
+      const orbit = 1.0 + (abilityIndex % 6) * 0.32 + Math.min(1.2, level * 0.08)
       const speed = 0.45 + abilityIndex * 0.08
       const a = t * speed + i * (Math.PI * 2 / MOTES) * 4.3
       const wobble = Math.sin(t * 2.4 + i * 0.37) * 0.14
@@ -168,12 +144,9 @@ export default function AbilityVFX() {
       col[i * 3 + 1] = color.g * pulse
       col[i * 3 + 2] = color.b * pulse
     }
-    const posAttr = points.geometry.attributes.position as THREE.BufferAttribute
-    const colAttr = points.geometry.attributes.color as THREE.BufferAttribute
-    posAttr.needsUpdate = true
-    colAttr.needsUpdate = true
+    ;(points.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true
+    ;(points.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true
 
-    /* Motion trail: becomes stronger while moving or during high combo. */
     const trailColor = color.setHex(owned[1] ?? primary)
     for (let i = 0; i < TRAILS; i++) {
       const f = i / TRAILS
@@ -189,12 +162,9 @@ export default function AbilityVFX() {
       dummy.updateMatrix()
       trailRef.current.setMatrixAt(i, dummy.matrix)
     }
-    trailRef.current.material = trailMaterial
     trailMaterial.color.copy(trailColor)
     trailMaterial.opacity = Math.min(0.65, moving * 0.09 + comboBoost + intensity * 0.04)
     trailRef.current.instanceMatrix.needsUpdate = true
-
-    lastPosition.current.lerp(player.position, 1 - Math.exp(-10 * dt))
   })
 
   return (
