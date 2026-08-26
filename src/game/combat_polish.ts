@@ -1,77 +1,79 @@
 import * as THREE from 'three'
 import { abilities } from './abilities'
-import { bullets, enemies, gameState, getPlayer, type Entity } from '../ecs/world'
+import { bullets, enemies, gameState, getPlayer, type Entity, spawnBurst } from '../ecs/world'
 import { runtimeQuality } from './performance'
-import { spawnBurst } from '../ecs/world'
 import { SpatialHash } from './spatial'
+import { onSimulationTick } from './simulation_clock'
 
 const tmp = new THREE.Vector3()
 const target = new THREE.Vector3()
 let running = false
-let frame = 0
-let last = 0
+let unsubscribeTick: (() => void) | undefined
 let separationTimer = 0
 let lastTierNotice = -10
 let lastTier = 0
+let lastCombo = 0
 
 const spatial = new SpatialHash(2.6)
 
 function rebuildEnemyGrid() {
-  spatial.build(enemies.entities)
+  spatial.build(enemies.entities.filter((enemy) => !enemy.dead))
+}
+
+function aliveEnemies(): Entity[] {
+  return enemies.entities.filter((enemy) => !enemy.dead)
 }
 
 function nearestEnemy(origin: THREE.Vector3, range: number): Entity | undefined {
-  return spatial.nearest(origin, range, enemies.entities)
+  return spatial.nearest(origin, range, aliveEnemies())
 }
 
 function steerProjectiles(dt: number) {
   const player = getPlayer()
   if (!player || abilities.arrows <= 0 || bullets.entities.length === 0) return
 
-  const strength = Math.min(0.82, 0.1 + abilities.arrows * 0.05)
-  const acquireRange = 8 + Math.min(12, abilities.arrows * 0.65)
-  const bulletsList = bullets.entities
+  const strength = Math.min(0.72, 0.08 + abilities.arrows * 0.045)
+  const acquireRange = 8 + Math.min(12, abilities.arrows * 0.6)
+  const maxTurn = 0.34
 
-  for (let i = 0; i < bulletsList.length; i++) {
-    const bullet = bulletsList[i]
-    if ((bullet.life ?? 0) <= 0) continue
+  for (const bullet of bullets.entities) {
+    if ((bullet.life ?? 0) <= 0 || bullet.dead) continue
     const enemy = nearestEnemy(bullet.position, acquireRange)
     if (!enemy) continue
 
     target.copy(enemy.position).sub(bullet.position)
     target.y = 0
     const len = target.length()
-    if (len < 0.05) continue
+    if (!Number.isFinite(len) || len < 0.05) continue
     target.multiplyScalar(1 / len)
 
-    const speed = Math.max(1, Math.hypot(bullet.velocity.x, bullet.velocity.z))
+    const speed = THREE.MathUtils.clamp(Math.hypot(bullet.velocity.x, bullet.velocity.z), 1, 24)
     tmp.set(bullet.velocity.x, 0, bullet.velocity.z)
     const currentLen = tmp.length()
-    if (currentLen < 0.05) tmp.copy(target)
+    if (!Number.isFinite(currentLen) || currentLen < 0.05) tmp.copy(target)
     else tmp.multiplyScalar(1 / currentLen)
 
-    tmp.lerp(target, 1 - Math.exp(-strength * dt * 60)).normalize()
+    const turn = Math.min(maxTurn, 1 - Math.exp(-strength * dt * 60))
+    tmp.lerp(target, turn).normalize()
     bullet.velocity.x = tmp.x * speed
     bullet.velocity.z = tmp.z * speed
   }
 }
 
 function separateSwarm(dt: number) {
-  const quality = runtimeQuality.enemyScale
-  const list = enemies.entities
+  const quality = THREE.MathUtils.clamp(runtimeQuality.enemyScale, 0.66, 1)
+  const list = aliveEnemies()
   if (list.length < 2) return
 
   const radius = 0.72 + (1 - quality) * 0.15
   const radius2 = radius * radius
   const repel = list.length > 900 ? 0.42 : 0.58
+  const maxNeighbors = list.length > 1100 ? 3 : 5
 
-  for (let i = 0; i < list.length; i++) {
-    const e = list[i]
-    if (e.dead) continue
-
+  for (const e of list) {
     let neighbors = 0
     spatial.forEachNearby(e.position, radius, list, (other) => {
-      if (other === e || neighbors >= 5) return
+      if (other === e || other.dead || neighbors >= maxNeighbors) return
       const dx = e.position.x - other.position.x
       const dz = e.position.z - other.position.z
       const d2 = dx * dx + dz * dz
@@ -85,10 +87,13 @@ function separateSwarm(dt: number) {
   }
 
   const maxSpeed = list.length > 1000 ? 7 : 8
-  for (let i = 0; i < list.length; i++) {
-    const e = list[i]
-    if (e.dead) continue
+  for (const e of list) {
     const speed = Math.hypot(e.velocity.x, e.velocity.z)
+    if (!Number.isFinite(speed)) {
+      e.velocity.x = 0
+      e.velocity.z = 0
+      continue
+    }
     if (speed > maxSpeed) {
       const scale = maxSpeed / speed
       e.velocity.x *= scale
@@ -107,10 +112,13 @@ function comboTier(combo: number) {
 }
 
 function comboFeedback() {
-  const tier = comboTier(gameState.combo)
-  if (tier === lastTier) return
+  const combo = Number.isFinite(gameState.combo) ? Math.max(0, Math.floor(gameState.combo)) : 0
+  if (combo < lastCombo) lastTier = Math.min(lastTier, comboTier(combo))
+  lastCombo = combo
+
+  const tier = comboTier(combo)
+  if (tier === lastTier || tier === 0) return
   lastTier = tier
-  if (tier === 0) return
 
   const labels = ['', 'RİTİM', 'FIRTINA', 'SAVAŞ MAKİNESİ', 'YIKIM', 'APOKALİPS'] as const
   const colors = [0, 0xffb15c, 0x8fd8ff, 0xcaa7ff, 0xff7f4f, 0xffe2a2] as const
@@ -120,11 +128,12 @@ function comboFeedback() {
   gameState.announceText = labels[tier]
   gameState.announceUntil = gameState.time + 0.85
   const p = getPlayer()
-  if (p) {
-    p.invuln = Math.max(p.invuln ?? 0, tier >= 4 ? 0.18 : 0.08)
-    gameState.shake = Math.min(1, gameState.shake + 0.08 + tier * 0.025)
-    spawnBurst(p.position, colors[tier], 5 + tier * 3, 3 + tier * 0.5, 0.24)
-  }
+  if (!p) return
+
+  p.invuln = Math.max(p.invuln ?? 0, tier >= 4 ? 0.18 : 0.08)
+  gameState.shake = THREE.MathUtils.clamp(gameState.shake + 0.08 + tier * 0.025, 0, 1)
+  const burstCount = runtimeQuality.particleScale < 0.5 ? 3 + tier : 5 + tier * 3
+  spawnBurst(p.position, colors[tier], burstCount, 3 + tier * 0.5, 0.24)
 }
 
 function tick(dt: number) {
@@ -144,26 +153,18 @@ function tick(dt: number) {
 export function startCombatPolish() {
   if (running || typeof window === 'undefined') return () => undefined
   running = true
-  last = performance.now()
-  const loop = (now: number) => {
-    if (!running) return
-    const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000))
-    last = now
-    tick(dt)
-    frame = window.requestAnimationFrame(loop)
-  }
-  frame = window.requestAnimationFrame(loop)
+  unsubscribeTick = onSimulationTick((dt) => tick(dt))
   return stopCombatPolish
 }
 
 export function stopCombatPolish() {
   running = false
-  if (frame) window.cancelAnimationFrame(frame)
-  frame = 0
-  last = 0
+  unsubscribeTick?.()
+  unsubscribeTick = undefined
   separationTimer = 0
   lastTierNotice = -10
   lastTier = 0
+  lastCombo = 0
   spatial.clear()
 }
 
@@ -171,5 +172,6 @@ export function resetCombatPolish() {
   separationTimer = 0
   lastTierNotice = -10
   lastTier = 0
+  lastCombo = 0
   spatial.clear()
 }
