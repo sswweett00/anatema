@@ -30,6 +30,7 @@ import { resetEnemyArchetypeRuntime, startEnemyArchetypeRuntime } from './enemy_
 import { resetRelicEffectRuntime, startRelicEffectRuntime } from './relic_effect_runtime'
 import { resetMetaProgression, startMetaProgression } from './meta_progression'
 import { resetIntegrationGuard, startIntegrationGuard } from './integration_guard'
+import { resetAbilityIntegrityGuard, startAbilityIntegrityGuard } from './ability_integrity_guard'
 import { validateContentContract } from './content_contract'
 
 type Stop = () => void
@@ -40,6 +41,7 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'content-contract', start: () => { validateContentContract(); return () => undefined }, reset: () => undefined },
   { name: 'meta-progression', start: startMetaProgression, reset: resetMetaProgression },
   { name: 'integration-guard', start: startIntegrationGuard, reset: resetIntegrationGuard },
+  { name: 'ability-integrity', start: startAbilityIntegrityGuard, reset: resetAbilityIntegrityGuard },
   { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
   { name: 'input-assist', start: startInputAssist, reset: resetInputAssist },
   { name: 'motion', start: startMotionRuntime, reset: resetMotionRuntime },
