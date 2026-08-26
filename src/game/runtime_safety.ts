@@ -44,13 +44,11 @@ function trimOverflow<T extends Entity>(collection: { entities: T[] }, max: numb
   if (collection.entities.length <= max) return
 
   const overflow = collection.entities.length - max
-  const candidates = collection.entities
-    .map((entity) => entity)
-    .sort((a, b) => {
-      const dead = Number(Boolean(b.dead)) - Number(Boolean(a.dead))
-      if (dead !== 0) return dead
-      return (b.age ?? 0) - (a.age ?? 0)
-    })
+  const candidates = [...collection.entities].sort((a, b) => {
+    const dead = Number(Boolean(b.dead)) - Number(Boolean(a.dead))
+    if (dead !== 0) return dead
+    return (b.age ?? 0) - (a.age ?? 0)
+  })
 
   for (let i = 0; i < overflow; i++) world.remove(candidates[i])
 }
@@ -80,10 +78,13 @@ function tick() {
   gameState.shake = Math.max(0, Math.min(1, finite(gameState.shake)))
   gameState.damageFlash = Math.max(0, Math.min(1, finite(gameState.damageFlash)))
   gameState.levelFlash = Math.max(0, Math.min(1, finite(gameState.levelFlash)))
+  gameState.flashNova = Math.max(0, Math.min(1, finite(gameState.flashNova)))
+  gameState.slashAnim = Math.max(0, finite(gameState.slashAnim))
+  gameState.slashYaw = finite(gameState.slashYaw)
 }
 
 export function startRuntimeSafety() {
-  if (running || typeof window === 'undefined') return () => undefined
+  if (running || typeof window === 'undefined') return stopRuntimeSafety
   running = true
   last = performance.now()
   const loop = (now: number) => {
