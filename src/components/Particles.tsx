@@ -12,6 +12,7 @@ import { softDotTexture } from '../game/textures'
 
 const MAX_P = 900
 const MAX_WISP = 160
+const _color = new THREE.Color()
 
 export default function Particles() {
   const pointsRef = useRef<THREE.Points>(null!)
@@ -117,16 +118,15 @@ export default function Particles() {
       }
 
       const f = Math.min(1, (pt.life / (pt.maxLife ?? 0.6)) * 1.6)
-      const color = new THREE.Color(pt.colorHex ?? 0xffffff)
-      color.multiplyScalar(f * 1.7)
+      _color.setHex(pt.colorHex ?? 0xffffff).multiplyScalar(f * 1.7)
 
       if (pt.wisp && wn < wispBudget) {
         wPos[wn * 3] = pt.position.x
         wPos[wn * 3 + 1] = pt.position.y
         wPos[wn * 3 + 2] = pt.position.z
-        wCol[wn * 3] = color.r
-        wCol[wn * 3 + 1] = color.g
-        wCol[wn * 3 + 2] = color.b
+        wCol[wn * 3] = _color.r
+        wCol[wn * 3 + 1] = _color.g
+        wCol[wn * 3 + 2] = _color.b
         wn++
         pt.velocity.y += 3.4 * dt
       }
@@ -135,9 +135,9 @@ export default function Particles() {
       positions[n * 3] = pt.position.x
       positions[n * 3 + 1] = pt.position.y
       positions[n * 3 + 2] = pt.position.z
-      colors[n * 3] = color.r
-      colors[n * 3 + 1] = color.g
-      colors[n * 3 + 2] = color.b
+      colors[n * 3] = _color.r
+      colors[n * 3 + 1] = _color.g
+      colors[n * 3 + 2] = _color.b
       n++
     }
 
