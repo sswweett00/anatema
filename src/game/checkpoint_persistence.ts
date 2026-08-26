@@ -1,3 +1,4 @@
+import { gameState } from '../ecs/world'
 import { captureRunCheckpoint, getRunCheckpointChecksum, restoreRunCheckpoint, validateRunCheckpoint, type RunCheckpoint } from './run_checkpoint'
 
 const STORAGE_KEY = 'anatema:last-checkpoint:v1'
@@ -14,6 +15,9 @@ function storageAvailable(): boolean {
 
 function persist(): boolean {
   if (!storageAvailable()) return false
+  // Never replace a useful save with the initial/menu world.
+  if (gameState.phase !== 'playing' && gameState.phase !== 'dead') return false
+
   try {
     const checkpoint = captureRunCheckpoint()
     const serialized = JSON.stringify(checkpoint)
@@ -56,13 +60,12 @@ export function startCheckpointPersistence(): () => void {
     const custom = event as CustomEvent<unknown>
     const payload = custom.detail
     if (!payload || typeof payload !== 'object') return
-    if (typeof (payload as { checkpoint?: unknown }).checkpoint !== 'object') return
-    const checkpoint = (payload as { checkpoint: unknown }).checkpoint
+    const checkpoint = (payload as { checkpoint?: unknown }).checkpoint
+    if (!checkpoint || typeof checkpoint !== 'object') return
     if (validateRunCheckpoint(checkpoint)) restoreRunCheckpoint(checkpoint)
   }
 
   window.addEventListener('anatema:restore-checkpoint', listener)
-  persist()
   timer = window.setInterval(persist, INTERVAL_MS)
 
   return stopCheckpointPersistence
