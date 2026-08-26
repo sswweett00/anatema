@@ -29,6 +29,24 @@ import DamageNumbers from './components/DamageNumbers'
 import ProfilePanel from './components/ProfilePanel'
 import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './components/Screens'
 
+class SceneIslandBoundary extends Component<{ name: string; children: ReactNode }, { failed: boolean; message: string }> {
+  state = { failed: false, message: '' }
+
+  static getDerivedStateFromError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    return { failed: true, message }
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error(`[ANATHEMA] scene island failed: ${this.props.name}`, error)
+  }
+
+  render() {
+    if (this.state.failed) return null
+    return this.props.children
+  }
+}
+
 const Scene = memo(function Scene({ quality, onPerformance }: { quality: QualityPreset; onPerformance: (snapshot: PerformanceSnapshot) => void }) {
   const controller = useRef(new PerformanceController(quality))
   const lastReport = useRef(0)
@@ -43,12 +61,16 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
   }, [quality])
 
   useFrame((_, dt) => {
-    const snapshot = controller.current.sample(dt, enemies.entities.length)
-    samplePerformance(snapshot.fps, Math.max(0.05, dt))
-    lastReport.current += dt
-    if (lastReport.current >= 0.5) {
-      lastReport.current = 0
-      onPerformance(snapshot)
+    try {
+      const snapshot = controller.current.sample(dt, enemies.entities.length)
+      samplePerformance(snapshot.fps, Math.max(0.05, dt))
+      lastReport.current += dt
+      if (lastReport.current >= 0.5) {
+        lastReport.current = 0
+        onPerformance(snapshot)
+      }
+    } catch (error) {
+      console.error('[ANATHEMA] performance frame failed', error)
     }
   })
 
@@ -57,24 +79,24 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
       <color attach="background" args={['#241a11']} />
       <fog attach="fog" args={['#241a11', 40, 140]} />
       <OrthographicCamera makeDefault position={[26, 26, 26]} zoom={42} near={-300} far={500} />
-      <Environment />
-      <Glows />
-      <Player />
-      <AbilityVFX />
-      <EnemySwarm />
-      <Weapons />
-      <ActiveAbilities />
-      <Particles />
-      <LootRenderer />
+      <SceneIslandBoundary name="environment"><Environment /></SceneIslandBoundary>
+      <SceneIslandBoundary name="glows"><Glows /></SceneIslandBoundary>
+      <SceneIslandBoundary name="player"><Player /></SceneIslandBoundary>
+      <SceneIslandBoundary name="ability-vfx"><AbilityVFX /></SceneIslandBoundary>
+      <SceneIslandBoundary name="enemy-swarm"><EnemySwarm /></SceneIslandBoundary>
+      <SceneIslandBoundary name="weapons"><Weapons /></SceneIslandBoundary>
+      <SceneIslandBoundary name="active-abilities"><ActiveAbilities /></SceneIslandBoundary>
+      <SceneIslandBoundary name="particles"><Particles /></SceneIslandBoundary>
+      <SceneIslandBoundary name="loot"><LootRenderer /></SceneIslandBoundary>
     </>
   )
 })
 
-class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
+class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean; message: string }> {
+  state = { failed: false, message: '' }
 
-  static getDerivedStateFromError() {
-    return { failed: true }
+  static getDerivedStateFromError(error: unknown) {
+    return { failed: true, message: error instanceof Error ? error.message : String(error) }
   }
 
   componentDidCatch(err: unknown) {
@@ -85,10 +107,11 @@ class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean
     if (this.state.failed) {
       return (
         <div className="font-body bg-void text-bone flex h-dvh w-screen items-center justify-center">
-          <div className="fade-rise mx-4 max-w-md text-center">
+          <div className="fade-rise mx-4 max-w-xl text-center">
             <div className="text-[11px] font-bold tracking-[0.5em] text-rust">KÜLLER SAVRULDU</div>
             <h1 className="font-display mt-3 text-4xl font-black tracking-[0.1em] text-bone">BİR ŞEYLER KIRILDI</h1>
-            <p className="mt-3 text-sm text-ash">Ayin beklenmedik bir şekilde söndü. Yeniden doğ ve kaldığın yerden devam et.</p>
+            <p className="mt-3 text-sm text-ash">Ayin beklenmedik bir şekilde söndü. Runtime hatası aşağıda.</p>
+            <pre className="mt-4 max-h-44 overflow-auto rounded border border-white/10 bg-black/40 p-3 text-left text-xs text-[#ffd7bd] whitespace-pre-wrap">{this.state.message || 'Bilinmeyen React/Three.js hatası'}</pre>
             <button onClick={() => window.location.reload()} className="btn-rust font-display mt-7 inline-block px-10 py-3.5 text-base font-black tracking-[0.28em] text-[#ffe9d2]">YENİDEN DOĞ</button>
           </div>
         </div>
