@@ -9,55 +9,54 @@ let accumulator = 0
 let berserkerMomentum = 0
 let lastKills = 0
 let harvestClaims = 0
+let fortuneClaims = 0
 
 function tick(dt: number) {
   if (gameState.phase !== 'playing') return
   const player = getPlayer()
   if (!player) return
 
-  // Berserker: combat dışında kaldıkça momentum biriktir; momentum hareket fiziğine gerçek ivme ekler.
   if (abilities.berserker > 0) {
     if (gameState.damageFlash > 0.05) {
       berserkerMomentum = Math.max(0, berserkerMomentum - dt * 2.8)
     } else {
       berserkerMomentum = Math.min(1, berserkerMomentum + dt * (0.12 + abilities.berserker * 0.018))
     }
-    if (berserkerMomentum > 0) {
-      const speed = Math.hypot(player.velocity.x, player.velocity.z)
-      if (speed > 0.2) {
-        const boost = 1 + berserkerMomentum * Math.min(0.18, abilities.berserker * 0.012)
-        player.velocity.x *= boost
-        player.velocity.z *= boost
-      }
+
+    const speed = Math.hypot(player.velocity.x, player.velocity.z)
+    if (berserkerMomentum > 0 && speed > 0.2) {
+      const targetSpeed = speed * (1 + berserkerMomentum * Math.min(0.18, abilities.berserker * 0.012))
+      const acceleration = Math.min(1, dt * (2.5 + abilities.berserker * 0.12))
+      const scale = 1 + ((targetSpeed / speed) - 1) * acceleration
+      player.velocity.x *= scale
+      player.velocity.z *= scale
     }
   }
 
-  // Precision: hareket halindeki saldırı ritmi sürekli daha kararlı hale gelir.
-  // Burada doğrudan simülasyon state'ine mikro stabilizasyon uyguluyoruz; saldırı hasarı
-  // merkezi rollDamage() tarafından hesaplandığından double-damage üretmez.
   if (abilities.precision > 0 && Math.hypot(player.velocity.x, player.velocity.z) > 0.5) {
-    const damp = Math.max(0.84, 1 - abilities.precision * 0.006)
+    const damp = Math.max(0.965, 1 - abilities.precision * 0.0018)
     player.velocity.x *= damp
     player.velocity.z *= damp
   }
 
-  // Life Forge: maksimum can büyüdükçe güvenli rejenerasyon tabanı yükselir.
   if (abilities.lifeforge > 0 && player.health < player.maxHealth) {
     const forgeRate = Math.min(12, 0.7 + player.maxHealth * 0.006 + abilities.lifeforge * 0.45)
     player.health = Math.min(player.maxHealth, player.health + forgeRate * dt)
   }
 
-  // Fortune's Favor: kilometre taşı ritmini gerçek ödüle bağlar; küçük ama sürekli XP bonusu.
-  if (abilities.fortunesfavor > 0) {
-    const milestone = Math.floor(gameState.kills / 25)
-    if (milestone > 0 && milestone !== Math.floor((gameState.kills - 1) / 25)) {
+  if (abilities.fortunesfavor > 0 && gameState.kills > 0) {
+    const milestoneIndex = Math.floor(gameState.kills / 25)
+    if (milestoneIndex > fortuneClaims) {
+      fortuneClaims = milestoneIndex
       const bonus = 1 + Math.min(0.5, abilities.fortunesfavor * 0.035)
       gameState.xp += Math.max(1, Math.floor(2 * bonus))
-      events.emit('loot:acquire', { kind: 'relic', rarity: abilities.fortunesfavor >= 8 ? 'epic' : 'rare' })
+      events.emit('loot:acquire', {
+        kind: 'relic',
+        rarity: abilities.fortunesfavor >= 8 ? 'epic' : 'rare',
+      })
     }
   }
 
-  // Soul Harvest: her 25 kesimde gerçek iyileştirme + tempo ödülü.
   if (abilities.soulharvest > 0 && gameState.kills > lastKills && gameState.kills % 25 === 0) {
     const milestoneIndex = gameState.kills / 25
     if (milestoneIndex > harvestClaims) {
@@ -73,6 +72,7 @@ function tick(dt: number) {
       })
     }
   }
+
   lastKills = gameState.kills
 }
 
@@ -85,10 +85,13 @@ export function startAbilityPassiveCompletion() {
     if (!running) return
     accumulator += Math.min(0.1, (now - last) / 1000)
     last = now
-    while (accumulator >= 1 / 30) {
+    let steps = 0
+    while (accumulator >= 1 / 30 && steps < 4) {
       tick(1 / 30)
       accumulator -= 1 / 30
+      steps++
     }
+    if (steps === 4) accumulator = Math.min(accumulator, 1 / 30)
     raf = window.requestAnimationFrame(loop)
   }
   raf = window.requestAnimationFrame(loop)
@@ -108,4 +111,5 @@ export function resetAbilityPassiveCompletion() {
   berserkerMomentum = 0
   lastKills = 0
   harvestClaims = 0
+  fortuneClaims = 0
 }
