@@ -11,15 +11,19 @@ import {
   xpToNextLevel,
 } from './progression'
 import { events } from './events'
+import { onSimulationTick } from './simulation_clock'
 
 type Stop = () => void
 
 let active = false
-let timer: number | undefined
+let unsubscribe: Stop | undefined
+let accumulator = 0
 let lastKills = 0
 let lastProgressLevel = 1
 let lastWaveMarker = 0
 let lastTime = 0
+
+const TICK_INTERVAL = 0.25
 
 function syncProgressToWorld(): void {
   const progress = getProgress()
@@ -29,15 +33,18 @@ function syncProgressToWorld(): void {
   gameState.wave = Math.max(0, progress.wave)
 }
 
-function applyLevelRewards(previousLevel: number, nextLevel: number): void {
-  for (let level = previousLevel + 1; level <= nextLevel; level++) {
+function applyLevelRewards(previousLevel: number, nextLevelValue: number): void {
+  for (let level = previousLevel + 1; level <= nextLevelValue; level++) {
     if (level % 5 === 0) acquireBestAvailableRelic()
     if (level > 20 && level % 10 === 0) addAscension()
   }
 }
 
-function tick(): void {
-  if (!active || typeof window === 'undefined') return
+function tick(dt: number): void {
+  if (!active) return
+  accumulator += Math.max(0, dt)
+  if (accumulator < TICK_INTERVAL) return
+  accumulator = 0
 
   const kills = Math.max(0, Math.floor(gameState.kills))
   const killDelta = kills - lastKills
@@ -80,23 +87,25 @@ function tick(): void {
 export function startProgressionRuntime(): Stop {
   if (active || typeof window === 'undefined') return stopProgressionRuntime
   active = true
-  resetProgress()
+  accumulator = 0
   syncProgressToWorld()
   lastKills = Math.max(0, Math.floor(gameState.kills))
   lastProgressLevel = gameState.level
   lastWaveMarker = Math.floor(Math.max(0, gameState.time) / 30)
   lastTime = Math.max(0, gameState.time)
-  timer = window.setInterval(tick, 250)
+  unsubscribe = onSimulationTick(tick)
   return stopProgressionRuntime
 }
 
 export function stopProgressionRuntime(): void {
   active = false
-  if (timer !== undefined) window.clearInterval(timer)
-  timer = undefined
+  unsubscribe?.()
+  unsubscribe = undefined
+  accumulator = 0
 }
 
 export function resetProgressionRuntime(): void {
+  stopProgressionRuntime()
   resetProgress()
   syncProgressToWorld()
   lastKills = Math.max(0, Math.floor(gameState.kills))
