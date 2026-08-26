@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { enemies, gameState, getPlayer, world, type Entity } from '../ecs/world'
 import { stepRigidBodyContacts } from './rigidbody_runtime'
+import { onSimulationTick } from './simulation_clock'
 
 export interface MotionConfig {
   acceleration: number
@@ -30,8 +31,6 @@ export const MOTION_CONFIG: MotionConfig = {
 
 const tmp = new THREE.Vector3()
 const offset = new THREE.Vector3()
-const FIXED_DT = 1 / 120
-const MAX_STEPS_PER_FRAME = 8
 
 function finite(value: number, fallback = 0): number {
   return Number.isFinite(value) ? value : fallback
@@ -135,60 +134,30 @@ function sanitizeEntity(entity: Entity): void {
 }
 
 function tickMotion(dt: number): void {
-  const safeDt = Math.min(FIXED_DT, Math.max(0.0001, dt))
+  const safeDt = Math.min(0.05, Math.max(0.001, dt))
   stepRigidBodyContacts(safeDt)
-
   const player = getPlayer()
   if (player) sanitizeEntity(player)
   for (const enemy of enemies.entities) {
-    if (enemy.dead) continue
-    sanitizeEntity(enemy)
+    if (!enemy.dead) sanitizeEntity(enemy)
   }
-
   gameState.shake = Math.max(0, finite(gameState.shake) - safeDt * 2.1)
 }
 
-let running = false
-let frame = 0
-let last = 0
-let accumulator = 0
+let unsubscribe: (() => void) | undefined
 
-export function startMotionRuntime() {
-  if (running || typeof window === 'undefined') return stopMotionRuntime
-  running = true
-  last = performance.now()
-  accumulator = 0
-
-  const loop = (now: number) => {
-    if (!running) return
-
-    const elapsed = Math.min(0.1, Math.max(0, (now - last) / 1000))
-    last = now
-    accumulator = Math.min(accumulator + elapsed, FIXED_DT * MAX_STEPS_PER_FRAME)
-
-    let steps = 0
-    while (accumulator >= FIXED_DT && steps < MAX_STEPS_PER_FRAME) {
-      tickMotion(FIXED_DT)
-      accumulator -= FIXED_DT
-      steps++
-    }
-
-    frame = window.requestAnimationFrame(loop)
-  }
-
-  frame = window.requestAnimationFrame(loop)
+export function startMotionRuntime(): () => void {
+  if (unsubscribe) return stopMotionRuntime
+  unsubscribe = onSimulationTick(tickMotion)
   return stopMotionRuntime
 }
 
-export function stopMotionRuntime() {
-  running = false
-  if (frame) window.cancelAnimationFrame(frame)
-  frame = 0
-  last = 0
-  accumulator = 0
+export function stopMotionRuntime(): void {
+  unsubscribe?.()
+  unsubscribe = undefined
 }
 
-export function resetMotionRuntime() {
+export function resetMotionRuntime(): void {
   stopMotionRuntime()
   const player = getPlayer()
   if (player) {
