@@ -21,8 +21,10 @@ import PlayerAnimationFX from './components/PlayerAnimationFX'
 import AbilityVFX from './components/AbilityVFX'
 import AbilityFieldVFX from './components/AbilityFieldVFX'
 import EnemySwarm from './components/EnemySwarm'
+import EnemyStatusVFX from './components/EnemyStatusVFX'
 import Weapons from './components/Weapons'
 import ActiveAbilities from './components/ActiveAbilities'
+import ExtendedActiveAbilities from './components/ExtendedActiveAbilities'
 import Glows from './components/Glows'
 import Particles from './components/Particles'
 import LootRenderer from './components/LootRenderer'
@@ -100,7 +102,7 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
       <color attach="background" args={['#20150f']} />
       <fog attach="fog" args={['#20150f', 42, 155]} />
       <ambientLight intensity={0.32} color="#d7c3b0" />
-      <OrthographicCamera makeDefault position={[26, 26, 26]} zoom={42} near={-300} far={500} />
+      <OrthographicCamera makeDefault position={[0, 32, 22]} zoom={42} near={-300} far={500} />
       <SceneIslandBoundary name="environment"><Environment /></SceneIslandBoundary>
       <SceneIslandBoundary name="glows"><Glows /></SceneIslandBoundary>
       <SceneIslandBoundary name="player"><Player /></SceneIslandBoundary>
@@ -108,8 +110,10 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
       <SceneIslandBoundary name="ability-vfx"><AbilityVFX /></SceneIslandBoundary>
       <SceneIslandBoundary name="ability-field-vfx"><AbilityFieldVFX /></SceneIslandBoundary>
       <SceneIslandBoundary name="enemy-swarm"><EnemySwarm /></SceneIslandBoundary>
+      <SceneIslandBoundary name="enemy-status-vfx"><EnemyStatusVFX /></SceneIslandBoundary>
       <SceneIslandBoundary name="weapons"><Weapons /></SceneIslandBoundary>
       <SceneIslandBoundary name="active-abilities"><ActiveAbilities /></SceneIslandBoundary>
+      <SceneIslandBoundary name="extended-active-abilities"><ExtendedActiveAbilities /></SceneIslandBoundary>
       <SceneIslandBoundary name="particles"><Particles /></SceneIslandBoundary>
       <SceneIslandBoundary name="loot"><LootRenderer /></SceneIslandBoundary>
     </>
