@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { getRunSeed, nextRandom, setRunSeed } from '../game/rng'
 
 /* ------------------------------------------------------------------ */
-/*  ANATHEMA — ECS çekirdeği. Tüm oyun durumu burada MUTATIF yaşar;    */
+/*  ANATEMA — ECS çekirdeği. Tüm oyun durumu burada MUTATIF yaşar;    */
 /*  React tarafında oyun verisi için tek bir re-render bile olmaz.     */
 /* ------------------------------------------------------------------ */
 
@@ -19,13 +19,11 @@ export type Entity = {
   maxPoise: number
   speed: number
   radius: number
-  /* arketip bayrakları */
   isPlayer?: boolean
   isEnemy?: boolean
   isBullet?: boolean
   isParticle?: boolean
   isLoot?: boolean
-  /* düşman */
   enemyKind?: number
   scale?: number
   phase?: number
@@ -33,27 +31,27 @@ export type Entity = {
   attackCooldown?: number
   damage?: number
   dead?: boolean
+  deathHandled?: boolean
+  dissolving?: number
+  dissolveSpeed?: number
   age?: number
   slow?: number
+  burn?: number
   wisp?: boolean
   lastDmg?: number
   lastCrit?: boolean
   lootDropped?: boolean
-  /* mermi */
   life?: number
   maxLife?: number
   pierce?: number
   spin?: number
   colorHex?: number
-  /* loot */
   lootKind?: 'xp' | 'heal' | 'relic' | 'shrine' | 'chest'
   rarity?: string
   value?: number
   magnetized?: boolean
-  /* oyuncu */
   stagger?: number
   regenDelay?: number
-  /* oyuncu yetenekleri */
   dashTime?: number
   dashCooldown?: number
   dashX?: number
@@ -66,14 +64,11 @@ export type Entity = {
 }
 
 export const world = new World<Entity>()
-
 export const players = world.with('isPlayer')
 export const enemies = world.with('isEnemy')
 export const bullets = world.with('isBullet')
 export const particles = world.with('isParticle')
 export const lootEntities = world.with('isLoot')
-
-/* ---------------- global, mutatif oyun durumu (UI bunu RAF ile okur) */
 
 export const gameState = {
   phase: 'menu' as Phase,
@@ -108,21 +103,16 @@ const phaseListeners = new Set<(p: Phase) => void>()
 
 export function onPhase(fn: (p: Phase) => void): () => void {
   phaseListeners.add(fn)
-  return () => {
-    phaseListeners.delete(fn)
-  }
+  return () => phaseListeners.delete(fn)
 }
 
 export function setPhase(p: Phase) {
   gameState.phase = p
-  phaseListeners.forEach((fn) => fn(p))
+  for (const fn of [...phaseListeners]) fn(p)
 }
 
 export const getPlayer = (): Entity | undefined => players.entities[0]
-
 export const MAX_ENEMIES = 1400
-
-/* ---------------- düşman türleri ---------------- */
 
 export const ENEMY_KINDS = [
   { name: 'Goblin', hp: 10, speed: 3.2, scale: 0.8, dmg: 4, color: 0x7fae4a, radius: 0.34 },
@@ -167,8 +157,6 @@ export function spawnEnemy(around: THREE.Vector3) {
   world.add(e)
 }
 
-/* ---------------- oyuncu ---------------- */
-
 export function spawnPlayer(): Entity {
   const existing = players.entities[0]
   if (existing) return existing
@@ -199,8 +187,6 @@ export function spawnPlayer(): Entity {
   return p
 }
 
-/* ---------------- mermiler ---------------- */
-
 const BULLET_SPEED = 26
 
 export function spawnBullet(origin: THREE.Vector3, dx: number, dz: number, damage: number, pierce: number) {
@@ -223,8 +209,6 @@ export function spawnBullet(origin: THREE.Vector3, dx: number, dz: number, damag
   }
   world.add(b)
 }
-
-/* ---------------- parçacıklar (kor / kıvılcım) ---------------- */
 
 const _pv = new THREE.Vector3()
 
@@ -278,10 +262,7 @@ export function spawnWisp(pos: THREE.Vector3, colorHex: number) {
   world.add(p)
 }
 
-/* ---------------- koşu sıfırlama ---------------- */
-
 export function resetRun() {
-  // Keep the same seed for a true replayable run: all gameplay randomness restarts identically.
   setRunSeed(getRunSeed())
   for (const e of [...enemies.entities]) world.remove(e)
   for (const e of [...bullets.entities]) world.remove(e)
