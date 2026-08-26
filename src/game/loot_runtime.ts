@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { enemies, gameState, getPlayer, lootEntities, world, type Entity } from '../ecs/world'
 import { events } from './events'
-import { random } from './progression'
+import { acquireBestAvailableRelic, addXp, random } from './progression'
 
 type LootKind = 'xp' | 'heal' | 'relic' | 'shrine' | 'chest'
 type Loot = Entity
@@ -58,17 +58,19 @@ function collect(item: Loot, player: Entity) {
   const value = Math.max(1, item.value ?? 1)
 
   if (kind === 'xp') {
-    gameState.xp = Math.min(1_000_000, gameState.xp + value)
+    addXp(value)
   } else if (kind === 'heal') {
     const before = player.health
     player.health = Math.min(player.maxHealth, player.health + value)
     if (player.health > before) events.emit('player:heal', { amount: player.health - before })
   } else if (kind === 'relic') {
-    events.emit('relic:acquire', { relicId: `drop:${item.rarity ?? 'common'}` })
+    const relicId = acquireBestAvailableRelic()
+    if (relicId) events.emit('loot:pickup', { kind: 'relic', rarity: item.rarity ?? 'common' })
   } else if (kind === 'shrine') {
     events.emit('shrine:activate', { shrineId: `shrine-${Math.floor(item.position.x)}-${Math.floor(item.position.z)}`, reward: item.rarity ?? 'blessing' })
   } else if (kind === 'chest') {
-    events.emit('loot:pickup', { kind: 'chest', rarity: item.rarity ?? 'rare' })
+    const relicId = acquireBestAvailableRelic()
+    if (relicId) events.emit('loot:pickup', { kind: 'chest', rarity: item.rarity ?? 'rare' })
   }
 
   events.emit('loot:pickup', { kind, rarity: item.rarity ?? 'common' })
