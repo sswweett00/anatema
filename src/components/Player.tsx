@@ -1,8 +1,9 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { getPlayer, gameState } from '../ecs/world'
+import { enemies, getPlayer, gameState, spawnBurst } from '../ecs/world'
 import { useInput } from '../hooks/useInput'
+import { sfx } from '../game/audio'
 
 /*
  * Kül Şövalyesi — izometrik kamera takibi + WASD hareketi.
@@ -43,6 +44,7 @@ export default function Player() {
     gameState.shake = Math.max(0, gameState.shake - dt * 2.1)
     gameState.damageFlash = Math.max(0, gameState.damageFlash - dt * 2.6)
     gameState.tierFlash = Math.max(0, gameState.tierFlash - dt * 0.7)
+    gameState.flashNova = Math.max(0, gameState.flashNova - dt * 2.4)
 
     if (playing) {
       const k = keys.current
@@ -51,6 +53,37 @@ export default function Player() {
       const iy =
         (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0)
 
+      /* yetenek zamanlayıcıları */
+      p.dashCooldown = Math.max(0, (p.dashCooldown ?? 0) - dt)
+      p.invuln = Math.max(0, (p.invuln ?? 0) - dt)
+      p.novaCooldown = (p.novaCooldown ?? 8) - dt
+
+      /* ---- ATILMA (BOŞLUK / SHIFT): kısa dokunulmazlık ---- */
+      if (
+        (k.Space || k.ShiftLeft || k.ShiftRight) &&
+        (p.dashCooldown ?? 0) <= 0 &&
+        (p.dashTime ?? 0) <= 0
+      ) {
+        let dx = p.facingX ?? 0
+        let dz = p.facingZ ?? 1
+        if (ix !== 0 || iy !== 0) {
+          tmp.move
+            .copy(FORWARD)
+            .multiplyScalar(iy)
+            .addScaledVector(RIGHT, ix)
+            .normalize()
+          dx = tmp.move.x
+          dz = tmp.move.z
+        }
+        p.dashX = dx
+        p.dashZ = dz
+        p.dashTime = 0.16
+        p.dashCooldown = 1.3
+        p.invuln = 0.32
+        sfx.dash()
+        spawnBurst(p.position, 0xff8a3d, 10, 3.4, 0.4)
+      }
+
       tmp.move.set(0, 0, 0)
       if (ix !== 0 || iy !== 0) {
         tmp.move
@@ -58,11 +91,49 @@ export default function Player() {
           .multiplyScalar(iy)
           .addScaledVector(RIGHT, ix)
           .normalize()
+        p.facingX = tmp.move.x
+        p.facingZ = tmp.move.z
         const slowed = p.stagger && p.stagger > 0 ? 0.42 : 1
         tmp.move.multiplyScalar(p.speed * slowed)
       }
-      p.velocity.lerp(tmp.move, 1 - Math.exp(-14 * dt))
+
+      if ((p.dashTime ?? 0) > 0) {
+        p.dashTime = (p.dashTime ?? 0) - dt
+        p.velocity.set((p.dashX ?? 0) * 24, 0, (p.dashZ ?? 0) * 24)
+        spawnBurst(p.position, 0xffb15c, 2, 1.2, 0.26)
+      } else {
+        p.velocity.lerp(tmp.move, 1 - Math.exp(-14 * dt))
+      }
       p.position.addScaledVector(p.velocity, dt)
+
+      /* ---- KÜL FIRTINASI: kadran 2+ iken otomatik halka dalgası ---- */
+      if (gameState.tier >= 2 && p.novaCooldown <= 0) {
+        p.novaCooldown = 8
+        const R = 5.6
+        const R2 = R * R
+        const novaDmg = 14 + gameState.tier * 5
+        const el = enemies.entities
+        for (let i = 0; i < el.length; i++) {
+          const e = el[i]
+          if (e.dead) continue
+          const dx = e.position.x - p.position.x
+          const dz = e.position.z - p.position.z
+          const d2 = dx * dx + dz * dz
+          if (d2 < R2) {
+            e.health -= Math.max(1, novaDmg - e.armor)
+            e.hitFlash = 1
+            const d = Math.sqrt(d2) || 1
+            e.velocity.x += (dx / d) * 15
+            e.velocity.z += (dz / d) * 15
+            if (e.health <= 0) e.dead = true
+          }
+        }
+        gameState.flashNova = 1
+        gameState.shake = Math.min(1, gameState.shake + 0.65)
+        sfx.nova()
+        spawnBurst(p.position, 0xff8a3d, 40, 6.5, 0.8)
+        spawnBurst(p.position, 0xe6dcc8, 16, 4, 0.5)
+      }
 
       /* duruş (poise) kırıldıysa sersemleme */
       if (p.stagger && p.stagger > 0) {
@@ -89,6 +160,11 @@ export default function Player() {
     /* ---- görsel durum ---- */
     const speedAmt = Math.hypot(p.velocity.x, p.velocity.z)
     group.current.position.copy(p.position)
+
+    /* dokunulmazlık sırasında titreyip sön */
+    body.current.visible = !(
+      (p.invuln ?? 0) > 0 && Math.floor(t * 22) % 2 === 0
+    )
 
     if (speedAmt > 0.4) {
       const targetYaw = Math.atan2(p.velocity.x, p.velocity.z)

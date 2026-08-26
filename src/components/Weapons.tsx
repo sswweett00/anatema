@@ -9,7 +9,6 @@ import {
   spawnBullet,
   spawnBurst,
   world,
-  ENEMY_KINDS,
   type Entity,
 } from '../ecs/world'
 import { sfx } from '../game/audio'
@@ -49,7 +48,6 @@ export default function Weapons() {
       dummy: new THREE.Object3D(),
       dir: new THREE.Vector3(),
       removeBullets: [] as Entity[],
-      removeEnemies: [] as Entity[],
     }),
     []
   )
@@ -142,10 +140,8 @@ export default function Weapons() {
             sfx.hit()
             spawnBurst(b.position, 0xffa14d, 3, 3, 0.35)
             b.pierce = (b.pierce ?? 1) - 1
-            if (e.health <= 0 && !e.dead) {
-              e.dead = true
-              tmp.removeEnemies.push(e)
-            }
+            /* ölüm bayrağı: temizlik + skor sürü sisteminde yapılır */
+            if (e.health <= 0 && !e.dead) e.dead = true
             if (b.pierce <= 0) {
               spent = true
               break
@@ -158,23 +154,6 @@ export default function Weapons() {
       for (let i = 0; i < tmp.removeBullets.length; i++) {
         world.remove(tmp.removeBullets[i])
       }
-
-      /* ---- ölümler: skor, kor patlaması, kademe ---- */
-      for (let i = 0; i < tmp.removeEnemies.length; i++) {
-        const e = tmp.removeEnemies[i]
-        world.remove(e)
-        gameState.kills++
-        sfx.kill()
-        const kind = e.enemyKind ?? 0
-        spawnBurst(e.position, ENEMY_KINDS[kind].color, kind === 2 ? 14 : 7, 4.2, 0.7)
-
-        if (gameState.kills >= gameState.tier * 30 && gameState.tier < 7) {
-          gameState.tier++
-          gameState.tierFlash = 1
-          sfx.tier()
-        }
-      }
-      tmp.removeEnemies.length = 0
     }
 
     /* ---- GPU'ya yaz ---- */

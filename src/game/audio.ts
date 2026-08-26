@@ -112,6 +112,19 @@ export const sfx = {
   stagger() {
     tone({ freq: 90, end: 40, dur: 0.5, type: 'sawtooth', vol: 0.14 })
   },
+  dash() {
+    noise(0.16, 0.07, 1500)
+    tone({ freq: 480, end: 940, dur: 0.13, type: 'triangle', vol: 0.05 })
+  },
+  nova() {
+    tone({ freq: 230, end: 38, dur: 0.55, type: 'sawtooth', vol: 0.2 })
+    noise(0.45, 0.13, 320)
+    tone({ freq: 900, end: 120, dur: 0.3, type: 'triangle', vol: 0.06 })
+  },
+  wave() {
+    tone({ freq: 132, end: 86, dur: 0.7, type: 'sawtooth', vol: 0.13 })
+    tone({ freq: 198, end: 140, dur: 0.6, delay: 0.12, type: 'sawtooth', vol: 0.1 })
+  },
   tier() {
     tone({ freq: 440, dur: 0.14, type: 'triangle', vol: 0.1 })
     tone({ freq: 660, dur: 0.16, delay: 0.09, type: 'triangle', vol: 0.1 })

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Flame, Skull, Swords } from 'lucide-react'
+import { Flame, Skull, Swords, Zap, HeartPulse } from 'lucide-react'
 import { gameState } from '../ecs/world'
 
 /* ---------------- kor tanecikleri (saf CSS) ---------------- */
@@ -41,7 +41,7 @@ function Keycap({ label }: { label: string }) {
   return <kbd className="kbd">{label}</kbd>
 }
 
-/* ---------------- başlangıç ayini ---------------- */
+/* ---------------- başlangıç ekranı ---------------- */
 
 export function StartScreen({ onStart }: { onStart: () => void }) {
   return (
@@ -51,7 +51,7 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 text-[11px] font-bold tracking-[0.5em] text-ash">
             <span className="h-px w-10 bg-[#5a3a22]" />
-            BİR KÜL AYİNİ
+            GRIMDARK AUTO-SHOOTER
             <span className="h-px w-10 bg-[#5a3a22]" />
           </div>
           <h1
@@ -67,13 +67,13 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
             REQUIEM OF RUST
           </div>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-ash md:text-[15px]">
-            Pas, imparatorlukları yuttu; geriye yalnızca yürüyen kabuklar kaldı. Son Kül
-            Şövalyesi olarak ayin halkasında dur — okların kendi nişan alır, sürü ise asla
-            durmaz.
+            Pas, imparatorlukları yuttu; geriye goblinler, iskeletler ve balçıktan doğan
+            dehşetler kaldı. Son Kül Şövalyesi olarak halkanı savun — okların kendi nişan
+            alır, sürü ise her saniye büyür.
           </p>
         </div>
 
-        {/* ayin levhası: kumanda + görev */}
+        {/* kumanda + özellikler levhası */}
         <div className="plate mt-7 grid grid-cols-1 gap-0 md:grid-cols-2">
           <div className="border-b border-[#3a2a1c] p-5 md:border-b-0 md:border-r">
             <div className="text-[10px] font-extrabold tracking-[0.34em] text-rust">KUMANDA</div>
@@ -86,37 +86,49 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
                 <span className="ml-1 text-ash">hareket</span>
               </div>
               <div className="flex items-center gap-2">
+                <Keycap label="BOŞLUK" />
+                <span className="ml-1 text-ash">atılma — kısa dokunulmazlık</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <Keycap label="P" />
-                <span className="ml-1 text-ash">ayini duraklat</span>
+                <span className="ml-1 text-ash">oyunu duraklat</span>
               </div>
               <div className="flex items-center gap-2">
                 <Flame size={14} className="shrink-0 text-ember" />
-                <span className="ml-1 text-ash">kül okları en yakın ruha otomatik uçar</span>
+                <span className="ml-1 text-ash">kül okları en yakın canavara otomatik uçar</span>
               </div>
             </div>
           </div>
           <div className="p-5">
-            <div className="text-[10px] font-extrabold tracking-[0.34em] text-rust">GÖREV</div>
+            <div className="text-[10px] font-extrabold tracking-[0.34em] text-rust">
+              ŞÖVALYENİN GÜÇLERİ
+            </div>
             <ul className="mt-3 space-y-2.5 text-[13px] text-ash">
               <li className="flex items-start gap-2">
-                <Swords size={14} className="mt-0.5 shrink-0 text-ember" />
+                <Zap size={14} className="mt-0.5 shrink-0 text-ember" />
                 <span>
-                  <b className="text-bone">1.100 lanetli ruh</b> seni avlayacak — sürü hiç
-                  eksilmez.
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Skull size={14} className="mt-0.5 shrink-0 text-ember" />
-                <span>
-                  Her <b className="text-bone">30 ruh</b> silahını bir kademeye taşır: daha çok
-                  ok, daha çok hasar, daha kalın zırh.
+                  <b className="text-bone">Atılma:</b> sürünün içinden dokunulmaz sıyrıl.
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <Flame size={14} className="mt-0.5 shrink-0 text-ember" />
                 <span>
-                  <b className="text-bone">Duruşun</b> kırılırsa sersemlersin. Kalabalığa
-                  yenilme.
+                  <b className="text-bone">Kül Fırtınası:</b> 2. kademeden sonra otomatik halka
+                  dalgası savurur.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <HeartPulse size={14} className="mt-0.5 shrink-0 text-[#3fae8c]" />
+                <span>
+                  <b className="text-bone">Kan Bağı:</b> her kesimde küçük can ve duruş
+                  yenilenir.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Swords size={14} className="mt-0.5 shrink-0 text-ember" />
+                <span>
+                  Her <b className="text-bone">30 kesim</b> kademe atlatır: daha çok ok, daha
+                  çok hasar, daha kalın zırh.
                 </span>
               </li>
             </ul>
@@ -129,7 +141,7 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
             className="btn-rust font-display group inline-flex items-center gap-3 px-12 py-4 text-lg font-black tracking-[0.3em] text-[#ffe9d2]"
           >
             <Flame size={20} className="transition-transform group-hover:scale-125" />
-            AYİNE BAŞLA
+            OYUNA BAŞLA
           </button>
           <div className="mt-3 text-[10px] tracking-[0.3em] text-ash/70">
             SES İÇİN TIKLA · SÜRÜ BEKLİYOR
@@ -172,7 +184,7 @@ export function DeathScreen({ onRestart }: { onRestart: () => void }) {
             </div>
           </div>
           <div className="p-4">
-            <div className="text-[9px] font-bold tracking-[0.28em] text-ash">KESİLEN RUH</div>
+            <div className="text-[9px] font-bold tracking-[0.28em] text-ash">KESİLEN CANAVAR</div>
             <div className="font-display mt-1 text-3xl font-black text-ember">
               {gameState.kills}
             </div>
@@ -204,7 +216,7 @@ export function PauseScreen() {
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60">
       <div className="fade-rise text-center">
         <div className="font-display text-4xl font-black tracking-[0.3em] text-bone">
-          AYİN DURDU
+          OYUN DURDU
         </div>
         <div className="mt-3 text-[11px] tracking-[0.3em] text-ash">
           DEVAM İÇİN <kbd className="kbd">P</kbd> — SÜRÜ SABIRSIZLANIYOR

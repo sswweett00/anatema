@@ -41,6 +41,15 @@ export type Entity = {
   /* oyuncu */
   stagger?: number
   regenDelay?: number
+  /* oyuncu yetenekleri */
+  dashTime?: number
+  dashCooldown?: number
+  dashX?: number
+  dashZ?: number
+  novaCooldown?: number
+  invuln?: number
+  facingX?: number
+  facingZ?: number
 }
 
 export const world = new World<Entity>()
@@ -60,6 +69,16 @@ export const gameState = {
   shake: 0,
   damageFlash: 0,
   tierFlash: 0,
+  wave: 0,
+  waveTimer: 18,
+  flashNova: 0,
+  announceText: '',
+  announceUntil: 0,
+}
+
+export function announce(text: string, dur = 2.6) {
+  gameState.announceText = text
+  gameState.announceUntil = gameState.time + dur
 }
 
 const phaseListeners = new Set<(p: Phase) => void>()
@@ -78,20 +97,26 @@ export function setPhase(p: Phase) {
 
 export const getPlayer = (): Entity | undefined => players.entities[0]
 
+export const MAX_ENEMIES = 1400
+
 /* ---------------- düşman türleri ---------------- */
 
+/* 0: Goblin — hızlı, cılız | 1: İskelet — dengeli | 2: Balçık — yavaş, kalın */
 export const ENEMY_KINDS = [
-  { name: 'Kül Ruhu', hp: 14, speed: 2.7, scale: 0.55, dmg: 6, color: 0x9a6a3f, radius: 0.32 },
-  { name: 'Ağıt', hp: 30, speed: 2.05, scale: 0.8, dmg: 9, color: 0x4f9a80, radius: 0.44 },
-  { name: 'Pas Dehşeti', hp: 95, speed: 1.2, scale: 1.3, dmg: 16, color: 0x7a2318, radius: 0.62 },
+  { name: 'Goblin', hp: 12, speed: 3.5, scale: 0.8, dmg: 5, color: 0x7fae4a, radius: 0.34 },
+  { name: 'İskelet', hp: 26, speed: 2.6, scale: 1.0, dmg: 8, color: 0xd9cfb4, radius: 0.42 },
+  { name: 'Balçık', hp: 80, speed: 1.55, scale: 1.15, dmg: 13, color: 0x3fbf82, radius: 0.52 },
 ] as const
 
 export function spawnEnemy(around: THREE.Vector3) {
   const t = gameState.time
-  const roll = Math.random()
-  const bruteP = Math.min(0.05 + t / 600, 0.16)
-  const wraithP = 0.2 + Math.min(t / 900, 0.1)
-  const kind = roll < bruteP ? 2 : roll < bruteP + wraithP ? 1 : 0
+  /* dalga ilerledikçe ağır canavarlar sürüye katılır */
+  const w = gameState.wave
+  const wGob = 5
+  const wSkel = w >= 2 ? 3 + w * 0.25 : 0
+  const wSlime = w >= 4 ? 2 + w * 0.3 : 0
+  let roll = Math.random() * (wGob + wSkel + wSlime)
+  const kind = roll < wGob ? 0 : roll < wGob + wSkel ? 1 : 2
   const k = ENEMY_KINDS[kind]
   const hpMul = 1 + (t / 120) * 0.35
   const dmgMul = 1 + (t / 240) * 0.5
@@ -106,7 +131,7 @@ export function spawnEnemy(around: THREE.Vector3) {
     velocity: new THREE.Vector3(),
     health: k.hp * hpMul,
     maxHealth: k.hp * hpMul,
-    armor: kind === 2 ? 3 : 0,
+    armor: kind === 2 ? 4 : kind === 1 ? 1 : 0,
     poise: 0,
     maxPoise: 1,
     speed: k.speed * (0.85 + Math.random() * 0.3),
@@ -142,6 +167,14 @@ export function spawnPlayer(): Entity {
     isPlayer: true,
     stagger: 0,
     regenDelay: 0,
+    dashTime: 0,
+    dashCooldown: 0,
+    dashX: 0,
+    dashZ: 1,
+    novaCooldown: 8,
+    invuln: 0,
+    facingX: 0,
+    facingZ: 1,
   }
   world.add(p)
   return p
@@ -234,12 +267,25 @@ export function resetRun() {
   p.stagger = 0
   p.regenDelay = 0
   p.dead = false
+  p.dashTime = 0
+  p.dashCooldown = 0
+  p.dashX = 0
+  p.dashZ = 1
+  p.novaCooldown = 8
+  p.invuln = 0
+  p.facingX = 0
+  p.facingZ = 1
   gameState.time = 0
   gameState.kills = 0
   gameState.tier = 1
   gameState.shake = 0
   gameState.damageFlash = 0
   gameState.tierFlash = 0
+  gameState.wave = 0
+  gameState.waveTimer = 18
+  gameState.flashNova = 0
+  gameState.announceText = 'OYUN BAŞLADI — SÜRÜ GELİYOR'
+  gameState.announceUntil = 2.6
 }
 
 /* menü sahnesinde şövalye hemen görünsün */

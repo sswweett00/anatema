@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Skull, Ghost, Flame, Shield, Volume2, VolumeX, HeartPulse } from 'lucide-react'
+import { Skull, Ghost, Flame, Shield, Volume2, VolumeX, HeartPulse, Zap } from 'lucide-react'
 import { clsx } from 'clsx'
 import { enemies, getPlayer, gameState } from '../ecs/world'
 import { isMuted, setMuted } from '../game/audio'
@@ -32,6 +32,11 @@ export default function HUD() {
   const toastRef = useRef<HTMLDivElement>(null)
   const toastTier = useRef<HTMLSpanElement>(null)
   const pipRefs = useRef<(HTMLSpanElement | null)[]>([])
+  const dashFillRef = useRef<HTMLDivElement>(null)
+  const novaFillRef = useRef<HTMLDivElement>(null)
+  const novaSlotRef = useRef<HTMLDivElement>(null)
+  const announceRef = useRef<HTMLDivElement>(null)
+  const flashNovaRef = useRef<HTMLDivElement>(null)
 
   const [muted, setMutedState] = useState(isMuted())
 
@@ -73,6 +78,25 @@ export default function HUD() {
         toastRef.current.style.transform = `translateX(-50%) translateY(${(1 - o) * 14}px)`
       }
       if (toastTier.current) toastTier.current.textContent = String(gameState.tier)
+
+      /* yetenek dolumları */
+      const p2 = getPlayer()
+      if (dashFillRef.current && p2)
+        dashFillRef.current.style.transform = `scaleY(${(p2.dashCooldown ?? 0) / 1.3})`
+      if (novaFillRef.current && p2) {
+        const locked = gameState.tier < 2
+        novaFillRef.current.style.transform = `scaleY(${locked ? 1 : Math.max(0, (p2.novaCooldown ?? 0) / 8)})`
+      }
+      if (novaSlotRef.current)
+        novaSlotRef.current.style.opacity = gameState.tier < 2 ? '0.35' : '1'
+      if (announceRef.current) {
+        const on = gameState.time < gameState.announceUntil && gameState.announceText
+        announceRef.current.style.opacity = on ? '1' : '0'
+        if (on && announceRef.current.textContent !== gameState.announceText)
+          announceRef.current.textContent = gameState.announceText
+      }
+      if (flashNovaRef.current)
+        flashNovaRef.current.style.opacity = String(gameState.flashNova * 0.5)
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
@@ -99,6 +123,25 @@ export default function HUD() {
               'radial-gradient(ellipse at center, transparent 48%, rgba(122,20,12,0.65) 100%)',
           }}
         />
+      </div>
+
+      {/* kül fırtınası flaşı */}
+      <div
+        ref={flashNovaRef}
+        className="absolute inset-0 opacity-0"
+        style={{
+          background:
+            'radial-gradient(circle at center, rgba(255,177,92,0.5) 0%, rgba(255,138,61,0.12) 45%, transparent 70%)',
+        }}
+      />
+
+      {/* dalga bildirimi */}
+      <div
+        ref={announceRef}
+        className="font-display absolute left-1/2 top-[13%] -translate-x-1/2 whitespace-nowrap text-sm font-bold tracking-[0.42em] text-ember opacity-0 transition-opacity duration-300 md:text-base"
+        style={{ textShadow: '0 0 18px rgba(255,138,61,0.8), 0 2px 0 #000' }}
+      >
+        OYUN BAŞLADI — SÜRÜ GELİYOR
       </div>
 
       {/* ---- üst şerit ---- */}
@@ -231,8 +274,8 @@ export default function HUD() {
       </div>
 
       {/* ---- alt şerit ---- */}
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4 md:p-6">
-        <div className="plate flex items-center gap-3 px-4 py-2.5">
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4 md:p-6">
+        <div className="plate hidden items-center gap-3 px-4 py-2.5 md:flex">
           <div className="flex items-center gap-1">
             <kbd className="kbd">W</kbd>
             <kbd className="kbd">A</kbd>
@@ -244,9 +287,55 @@ export default function HUD() {
           <kbd className="kbd">P</kbd>
           <span className="text-[10px] tracking-[0.2em] text-ash">DURAKLAT</span>
         </div>
-        <div className="hidden items-center gap-2 text-[10px] tracking-[0.24em] text-ash/80 md:flex">
+
+        {/* yetenek paneli */}
+        <div className="plate flex items-end gap-2.5 px-3.5 py-2.5">
+          {/* Atılma */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="relative h-11 w-11 overflow-hidden border border-[#5a3a22] bg-black/70">
+              <Zap size={19} className="absolute inset-0 m-auto text-ember" />
+              <div
+                ref={dashFillRef}
+                className="absolute inset-0 origin-bottom bg-black/75"
+                style={{ transform: 'scaleY(0)' }}
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <kbd className="kbd h-4 min-w-[16px] px-1 text-[8px]">␣</kbd>
+              <span className="text-[8px] font-bold tracking-[0.14em] text-ash">ATILMA</span>
+            </div>
+          </div>
+          {/* Kül Fırtınası */}
+          <div className="flex flex-col items-center gap-1">
+            <div
+              ref={novaSlotRef}
+              className="relative h-11 w-11 overflow-hidden border border-[#5a3a22] bg-black/70 transition-opacity duration-300"
+            >
+              <Flame size={19} className="absolute inset-0 m-auto text-rust" />
+              <div
+                ref={novaFillRef}
+                className="absolute inset-0 origin-bottom bg-black/75"
+                style={{ transform: 'scaleY(1)' }}
+              />
+            </div>
+            <span className="text-[8px] font-bold tracking-[0.14em] text-ash">
+              FIRTINA · K2+
+            </span>
+          </div>
+          {/* Kan Bağı (pasif) */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="relative h-11 w-11 border border-[#2c4a3e] bg-black/70">
+              <HeartPulse size={19} className="absolute inset-0 m-auto text-[#3fae8c]" />
+            </div>
+            <span className="text-[8px] font-bold tracking-[0.14em] text-[#5f9484]">
+              KAN BAĞI
+            </span>
+          </div>
+        </div>
+
+        <div className="plate hidden items-center gap-2 px-4 py-2.5 text-[10px] tracking-[0.2em] text-ash/80 lg:flex">
           <Flame size={11} className="text-rust" />
-          OKLAR EN YAKIN RUHA KENDİLİĞİNDEN UÇAR
+          OKLAR KENDİ NİŞAN ALIR
         </div>
       </div>
 
