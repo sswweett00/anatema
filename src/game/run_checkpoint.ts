@@ -1,3 +1,4 @@
+import * as THREE from 'three'
 import { enemies, bullets, gameState, getPlayer, lootEntities, particles, players, world, type Entity } from '../ecs/world'
 import { abilities } from './abilities'
 import { getRunSeed, setRunSeed } from './rng'
