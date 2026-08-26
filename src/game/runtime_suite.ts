@@ -31,6 +31,8 @@ import { resetRelicEffectRuntime, startRelicEffectRuntime } from './relic_effect
 import { resetMetaProgression, startMetaProgression } from './meta_progression'
 import { resetIntegrationGuard, startIntegrationGuard } from './integration_guard'
 import { resetAbilityIntegrityGuard, startAbilityIntegrityGuard } from './ability_integrity_guard'
+import { resetAdvancedMechanicsV3, startAdvancedMechanicsV3 } from './advanced_mechanics_v3'
+import { resetSkillMasteryRuntimeV3, startSkillMasteryRuntimeV3 } from './skill_mastery_runtime_v3'
 import { validateContentContract } from './content_contract'
 
 type Stop = () => void
@@ -42,6 +44,8 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'meta-progression', start: startMetaProgression, reset: resetMetaProgression },
   { name: 'integration-guard', start: startIntegrationGuard, reset: resetIntegrationGuard },
   { name: 'ability-integrity', start: startAbilityIntegrityGuard, reset: resetAbilityIntegrityGuard },
+  { name: 'advanced-mechanics-v3', start: startAdvancedMechanicsV3, reset: resetAdvancedMechanicsV3 },
+  { name: 'skill-mastery-v3', start: startSkillMasteryRuntimeV3, reset: resetSkillMasteryRuntimeV3 },
   { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
   { name: 'input-assist', start: startInputAssist, reset: resetInputAssist },
   { name: 'motion', start: startMotionRuntime, reset: resetMotionRuntime },
