@@ -1,6 +1,11 @@
 import { World } from 'miniplex'
 import * as THREE from 'three'
 
+/* ------------------------------------------------------------------ */
+/*  ANATHEMA — ECS çekirdeği. Tüm oyun durumu burada MUTATIF yaşar;    */
+/*  React tarafında oyun verisi için tek bir re-render bile olmaz.     */
+/* ------------------------------------------------------------------ */
+
 export type Phase = 'menu' | 'playing' | 'paused' | 'dead' | 'levelup'
 
 export type Entity = {
@@ -13,11 +18,13 @@ export type Entity = {
   maxPoise: number
   speed: number
   radius: number
+  /* arketip bayrakları */
   isPlayer?: boolean
   isEnemy?: boolean
   isBullet?: boolean
   isParticle?: boolean
   isLoot?: boolean
+  /* düşman */
   enemyKind?: number
   scale?: number
   phase?: number
@@ -30,13 +37,22 @@ export type Entity = {
   wisp?: boolean
   lastDmg?: number
   lastCrit?: boolean
+  lootDropped?: boolean
+  /* mermi */
   life?: number
   maxLife?: number
   pierce?: number
   spin?: number
   colorHex?: number
+  /* loot */
+  lootKind?: 'xp' | 'heal' | 'relic' | 'shrine' | 'chest'
+  rarity?: string
+  value?: number
+  magnetized?: boolean
+  /* oyuncu */
   stagger?: number
   regenDelay?: number
+  /* oyuncu yetenekleri */
   dashTime?: number
   dashCooldown?: number
   dashX?: number
@@ -49,11 +65,14 @@ export type Entity = {
 }
 
 export const world = new World<Entity>()
+
 export const players = world.with('isPlayer')
 export const enemies = world.with('isEnemy')
 export const bullets = world.with('isBullet')
 export const particles = world.with('isParticle')
 export const lootEntities = world.with('isLoot')
+
+/* ---------------- global, mutatif oyun durumu (UI bunu RAF ile okur) */
 
 export const gameState = {
   phase: 'menu' as Phase,
@@ -85,17 +104,24 @@ export function announce(text: string, dur = 2.6) {
 }
 
 const phaseListeners = new Set<(p: Phase) => void>()
+
 export function onPhase(fn: (p: Phase) => void): () => void {
   phaseListeners.add(fn)
-  return () => phaseListeners.delete(fn)
+  return () => {
+    phaseListeners.delete(fn)
+  }
 }
+
 export function setPhase(p: Phase) {
   gameState.phase = p
   phaseListeners.forEach((fn) => fn(p))
 }
 
 export const getPlayer = (): Entity | undefined => players.entities[0]
+
 export const MAX_ENEMIES = 1400
+
+/* ---------------- düşman türleri ---------------- */
 
 export const ENEMY_KINDS = [
   { name: 'Goblin', hp: 10, speed: 3.2, scale: 0.8, dmg: 4, color: 0x7fae4a, radius: 0.34 },
@@ -116,7 +142,7 @@ export function spawnEnemy(around: THREE.Vector3) {
   const dmgMul = 1 + (t / 300) * 0.45
   const ang = Math.random() * Math.PI * 2
   const dist = 24 + Math.random() * 18
-  world.add({
+  const e: Entity = {
     position: new THREE.Vector3(around.x + Math.cos(ang) * dist, 0, around.z + Math.sin(ang) * dist),
     velocity: new THREE.Vector3(),
     health: k.hp * hpMul,
@@ -135,14 +161,18 @@ export function spawnEnemy(around: THREE.Vector3) {
     damage: k.dmg * dmgMul,
     dead: false,
     age: 0,
-  })
+    lootDropped: false,
+  }
+  world.add(e)
 }
+
+/* ---------------- oyuncu ---------------- */
 
 export function spawnPlayer(): Entity {
   const existing = players.entities[0]
   if (existing) return existing
   const p: Entity = {
-    position: new THREE.Vector3(),
+    position: new THREE.Vector3(0, 0, 0),
     velocity: new THREE.Vector3(),
     health: 100,
     maxHealth: 100,
@@ -168,9 +198,12 @@ export function spawnPlayer(): Entity {
   return p
 }
 
+/* ---------------- mermiler ---------------- */
+
 const BULLET_SPEED = 26
+
 export function spawnBullet(origin: THREE.Vector3, dx: number, dz: number, damage: number, pierce: number) {
-  world.add({
+  const b: Entity = {
     position: new THREE.Vector3(origin.x, 0.7, origin.z),
     velocity: new THREE.Vector3(dx * BULLET_SPEED, 0, dz * BULLET_SPEED),
     health: 1,
@@ -186,10 +219,14 @@ export function spawnBullet(origin: THREE.Vector3, dx: number, dz: number, damag
     life: 1.4,
     maxLife: 1.4,
     spin: Math.random() * Math.PI * 2,
-  })
+  }
+  world.add(b)
 }
 
+/* ---------------- parçacıklar (kor / kıvılcım) ---------------- */
+
 const _pv = new THREE.Vector3()
+
 export function spawnBurst(pos: THREE.Vector3, colorHex: number, count: number, power = 4, life = 0.6) {
   if (particles.entities.length > 460) return
   for (let i = 0; i < count; i++) {
@@ -197,7 +234,7 @@ export function spawnBurst(pos: THREE.Vector3, colorHex: number, count: number, 
     const up = 1.5 + Math.random() * 3.5
     _pv.set(Math.cos(a) * (0.4 + Math.random()), up, Math.sin(a) * (0.4 + Math.random()))
     const l = life * (0.6 + Math.random() * 0.8)
-    world.add({
+    const p: Entity = {
       position: new THREE.Vector3(pos.x + (Math.random() - 0.5) * 0.3, pos.y + 0.35 + Math.random() * 0.35, pos.z + (Math.random() - 0.5) * 0.3),
       velocity: _pv.clone().multiplyScalar(power * 0.35),
       health: 1,
@@ -212,14 +249,15 @@ export function spawnBurst(pos: THREE.Vector3, colorHex: number, count: number, 
       maxLife: l,
       colorHex,
       spin: Math.random() * Math.PI * 2,
-    })
+    }
+    world.add(p)
   }
 }
 
 export function spawnWisp(pos: THREE.Vector3, colorHex: number) {
   if (particles.entities.length > 470) return
   const l = 1.1 + Math.random() * 0.5
-  world.add({
+  const p: Entity = {
     position: new THREE.Vector3(pos.x + (Math.random() - 0.5) * 0.4, pos.y + 0.4 + Math.random() * 0.5, pos.z + (Math.random() - 0.5) * 0.4),
     velocity: new THREE.Vector3((Math.random() - 0.5) * 0.7, 2.2 + Math.random(), (Math.random() - 0.5) * 0.7),
     health: 1,
@@ -235,8 +273,11 @@ export function spawnWisp(pos: THREE.Vector3, colorHex: number) {
     colorHex,
     wisp: true,
     spin: 0,
-  })
+  }
+  world.add(p)
 }
+
+/* ---------------- koşu sıfırlama ---------------- */
 
 export function resetRun() {
   for (const e of [...enemies.entities]) world.remove(e)
