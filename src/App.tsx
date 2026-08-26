@@ -21,6 +21,7 @@ import ActiveAbilities from './components/ActiveAbilities'
 import Glows from './components/Glows'
 import Particles from './components/Particles'
 import HUD from './components/HUD'
+import CombatStatus from './components/CombatStatus'
 import DamageNumbers from './components/DamageNumbers'
 import ProfilePanel from './components/ProfilePanel'
 import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './components/Screens'
@@ -187,6 +188,7 @@ export default function App() {
           </div>
         )}
         {(phase === 'playing' || phase === 'paused' || phase === 'levelup') && <HUD />}
+        {phase === 'playing' && <CombatStatus />}
         {phase === 'playing' && <DamageNumbers />}
         {phase === 'menu' && <StartScreen onStart={start} />}
         {phase === 'menu' && <ProfilePanel />}
