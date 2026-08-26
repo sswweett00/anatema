@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { mergePainted } from '../game/mergeGeo'
 import {
   enemies,
   getPlayer,
@@ -142,7 +142,7 @@ function buildGoblinGeo(): THREE.BufferGeometry {
   eyeR.translate(0.055, 0.56, 0.115)
   parts.push(paint(eyeR, new THREE.Color(2.4, 1.9, 0.35).getHex(), 1))
 
-  return mergeGeometries(parts)!
+  return mergePainted(parts)
 }
 
 /* ---------------- İSKELET ---------------- */
@@ -230,7 +230,7 @@ function buildSkeletonGeo(): THREE.BufferGeometry {
   socketR.translate(0.06, 0.86, 0.125)
   parts.push(paint(socketR, new THREE.Color(2.6, 0.9, 0.15).getHex(), 1))
 
-  return mergeGeometries(parts)!
+  return mergePainted(parts)
 }
 
 /* ---------------- BALÇIK ---------------- */
@@ -264,7 +264,7 @@ function buildSlimeGeo(): THREE.BufferGeometry {
   eyeR.translate(0.1, 0.2, 0.245)
   parts.push(paint(eyeR, 0x0e2e20))
 
-  return mergeGeometries(parts)!
+  return mergePainted(parts)
 }
 
 /* ---------------- bileşen ---------------- */

@@ -1,14 +1,8 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { mergeBufferGeometries } from 'three-stdlib'
-
-/* sürümden bağımsız birleştirme + güvenli fallback */
-function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const m = mergeBufferGeometries(parts, false)
-  return m ?? new THREE.CylinderGeometry(0.3, 0.28, 1.2, 14)
-}
 import { getPlayer, gameState, enemies, spawnBurst } from '../ecs/world'
+import { mergePainted as merge } from '../game/mergeGeo'
 import { useInput } from '../hooks/useInput'
 import { sfx } from '../game/audio'
 import {
