@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { enemies, gameState, getPlayer, type Entity } from '../ecs/world'
 
-const target = new THREE.Vector3()
 const radial = new THREE.Vector3()
 const tangent = new THREE.Vector3()
 
@@ -43,7 +42,6 @@ function steer(enemy: Entity, player: Entity, dt: number): void {
   const healthRatio = Math.max(0, Math.min(1, enemy.health / Math.max(1, enemy.maxHealth)))
   const boss = isBoss(enemy)
 
-  // Close enemies make room instead of endlessly stacking into the player.
   if (distance < 2.4 && !boss) {
     const push = Math.min(3.4, (2.4 - distance) * 3.2)
     enemy.velocity.x -= radial.x * push * dt
@@ -53,14 +51,12 @@ function steer(enemy: Entity, player: Entity, dt: number): void {
     return
   }
 
-  // Middle range: form a loose ring around the player and attack from angles.
   if (distance < (boss ? 8.5 : 6.5)) {
     const desiredTangent = boss ? 0.55 : 1.25
     const desiredRadial = boss ? 0.22 : 0.42
     enemy.velocity.x += (tangent.x * desiredTangent + radial.x * desiredRadial) * dt
     enemy.velocity.z += (tangent.z * desiredTangent + radial.z * desiredRadial) * dt
 
-    // Damaged regular enemies bias outward, creating short-lived openings.
     if (!boss && healthRatio < 0.22 && distance < 5.2) {
       enemy.velocity.x -= radial.x * (0.8 + (0.22 - healthRatio) * 2.2) * dt
       enemy.velocity.z -= radial.z * (0.8 + (0.22 - healthRatio) * 2.2) * dt
@@ -68,7 +64,6 @@ function steer(enemy: Entity, player: Entity, dt: number): void {
     return
   }
 
-  // Far enemies get a controlled chase correction.
   const chase = boss ? 0.75 : 1.1
   enemy.velocity.x += radial.x * chase * dt
   enemy.velocity.z += radial.z * chase * dt
@@ -81,8 +76,7 @@ function step(dt: number): void {
   const list = enemies.entities
   if (list.length === 0) return
 
-  // Under extreme pressure we sample rather than touching every enemy every tick.
-  const stride = list.length > 1000 ? 2 : list.length > 600 ? 1 : 1
+  const stride = list.length > 1000 ? 2 : 1
   for (let i = 0; i < list.length; i += stride) {
     steer(list[i], player, dt)
   }
