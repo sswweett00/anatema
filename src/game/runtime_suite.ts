@@ -6,25 +6,29 @@ import { resetCombatPolish, startCombatPolish } from './combat_polish'
 import { resetProgressionRuntime, startProgressionRuntime } from './progression_runtime'
 import { resetRuntimeSafety, startRuntimeSafety } from './runtime_safety'
 import { resetEventBridge, startEventBridge } from './event_bridge'
+import { resetStatusRuntime, startStatusRuntime } from './status_runtime'
+import { resetBossAI, startBossAI } from './boss_ai'
+import { resetInvariantRuntime, startInvariantRuntime } from './invariant_runtime'
+import { resetVfxEventRuntime, startVfxEventRuntime } from './vfx_event_runtime'
+import { resetWaveDirector, startWaveDirector } from './wave_director'
 
 type Stop = () => void
+type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
 
-type RuntimeSpec = {
-  name: string
-  start: () => Stop
-  reset: () => void
-}
-
-// Foundation runtimes are started first so consumers never observe a half-built pipeline.
 const RUNTIMES: RuntimeSpec[] = [
   { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
   { name: 'run-director', start: startRunDirector, reset: resetRunDirector },
+  { name: 'wave-director', start: startWaveDirector, reset: resetWaveDirector },
   { name: 'advanced-combat', start: startAdvancedRuntime, reset: resetAdvancedRuntime },
   { name: 'mega-systems', start: startMegaSystemsV2, reset: resetMegaSystemsV2 },
   { name: 'mega-completion', start: startMegaCompletion, reset: resetMegaCompletion },
   { name: 'combat-polish', start: startCombatPolish, reset: resetCombatPolish },
+  { name: 'status-effects', start: startStatusRuntime, reset: resetStatusRuntime },
+  { name: 'boss-ai', start: startBossAI, reset: resetBossAI },
   { name: 'progression', start: startProgressionRuntime, reset: resetProgressionRuntime },
+  { name: 'vfx-events', start: startVfxEventRuntime, reset: resetVfxEventRuntime },
   { name: 'runtime-safety', start: startRuntimeSafety, reset: resetRuntimeSafety },
+  { name: 'invariants', start: startInvariantRuntime, reset: resetInvariantRuntime },
 ]
 
 let mounted = false
@@ -60,7 +64,6 @@ export function startRuntimeSuite(): Stop {
 export function stopRuntimeSuite(): void {
   if (!mounted) return
   mounted = false
-
   for (let i = stops.length - 1; i >= 0; i--) {
     try {
       stops[i]()
@@ -72,8 +75,6 @@ export function stopRuntimeSuite(): void {
 }
 
 export function resetRuntimeSuite(): void {
-  // Event subscriptions belong to application lifetime, not a single run.
-  // Individual runtimes clear their own transient state below.
   for (let i = RUNTIMES.length - 1; i >= 0; i--) {
     try {
       RUNTIMES[i].reset()
@@ -84,8 +85,5 @@ export function resetRuntimeSuite(): void {
 }
 
 export function runtimeSuiteStatus(): { mounted: boolean; runtimes: string[] } {
-  return {
-    mounted,
-    runtimes: RUNTIMES.map(({ name }) => name),
-  }
+  return { mounted, runtimes: RUNTIMES.map(({ name }) => name) }
 }
