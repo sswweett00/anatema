@@ -21,6 +21,7 @@ import { resetAbilityActivationRuntime, startAbilityActivationRuntime } from './
 import { resetAbilityPassiveCompletion, startAbilityPassiveCompletion } from './ability_passive_completion'
 import { resetQualityRuntime, startQualityRuntime } from './quality_runtime'
 import { resetRunCheckpoint, startRunCheckpoint } from './run_checkpoint'
+import { resetCheckpointPersistence, startCheckpointPersistence } from './checkpoint_persistence'
 
 type Stop = () => void
 type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
@@ -48,6 +49,7 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'system-integrity', start: startSystemIntegrity, reset: resetSystemIntegrity },
   { name: 'quality-core', start: startQualityRuntime, reset: resetQualityRuntime },
   { name: 'run-checkpoint', start: startRunCheckpoint, reset: resetRunCheckpoint },
+  { name: 'checkpoint-persistence', start: startCheckpointPersistence, reset: resetCheckpointPersistence },
 ]
 
 let mounted = false
