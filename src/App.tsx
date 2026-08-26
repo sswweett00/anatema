@@ -10,6 +10,8 @@ import { samplePerformance } from './game/performance_governor'
 import { validateCombatContent } from './game/content_validation'
 import { diagnosticsJson } from './game/diagnostics'
 import { resetRuntimeSuite, startRuntimeSuite } from './game/runtime_suite'
+import { resetGameServices } from './game/game_services'
+import { saveRunSnapshot } from './game/run_snapshot'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
@@ -18,9 +20,11 @@ import Weapons from './components/Weapons'
 import ActiveAbilities from './components/ActiveAbilities'
 import Glows from './components/Glows'
 import Particles from './components/Particles'
+import LootRenderer from './components/LootRenderer'
 import HUD from './components/HUD'
 import CombatStatus from './components/CombatStatus'
 import CombatFeed from './components/CombatFeed'
+import WorldStatus from './components/WorldStatus'
 import DamageNumbers from './components/DamageNumbers'
 import ProfilePanel from './components/ProfilePanel'
 import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './components/Screens'
@@ -61,6 +65,7 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
       <Weapons />
       <ActiveAbilities />
       <Particles />
+      <LootRenderer />
     </>
   )
 })
@@ -97,14 +102,7 @@ export default function App() {
   const [phase, setPh] = useState<Phase>('menu')
   const [profile, setProfile] = useState<Profile>(() => loadProfile())
   const [quality, setQualityState] = useState<QualityPreset>(() => loadProfile().quality)
-  const [performance, setPerformance] = useState<PerformanceSnapshot>({
-    fps: 60,
-    frameMs: 16.7,
-    pressure: 0,
-    recommendedDpr: 1,
-    particleScale: 0.7,
-    enemyScale: 0.9,
-  })
+  const [performance, setPerformance] = useState<PerformanceSnapshot>({ fps: 60, frameMs: 16.7, pressure: 0, recommendedDpr: 1, particleScale: 0.7, enemyScale: 0.9 })
   const runRecorded = useRef(false)
 
   useEffect(() => {
@@ -118,6 +116,7 @@ export default function App() {
     if (next === 'playing') runRecorded.current = false
     if (next === 'dead' && !runRecorded.current) {
       runRecorded.current = true
+      saveRunSnapshot()
       setProfile(recordRun({
         kills: gameState.kills,
         level: gameState.level,
@@ -153,17 +152,12 @@ export default function App() {
     if (!import.meta.env.DEV) return
     const diagnostics = () => diagnosticsJson()
     ;(window as Window & { __ANATEMA_DIAGNOSTICS__?: () => string }).__ANATEMA_DIAGNOSTICS__ = diagnostics
-    return () => {
-      delete (window as Window & { __ANATEMA_DIAGNOSTICS__?: () => string }).__ANATEMA_DIAGNOSTICS__
-    }
+    return () => { delete (window as Window & { __ANATEMA_DIAGNOSTICS__?: () => string }).__ANATEMA_DIAGNOSTICS__ }
   }, [])
 
   const start = useCallback(() => {
-    try {
-      initAudio()
-    } catch (err) {
-      console.warn('Ses başlatılamadı (oyun sessiz devam eder):', err)
-    }
+    try { initAudio() } catch (err) { console.warn('Ses başlatılamadı (oyun sessiz devam eder):', err) }
+    resetGameServices()
     resetRuntimeSuite()
     resetAbilities()
     resetRun()
@@ -188,6 +182,7 @@ export default function App() {
         {(phase === 'playing' || phase === 'paused' || phase === 'levelup') && <HUD />}
         {phase === 'playing' && <CombatStatus />}
         {phase === 'playing' && <CombatFeed />}
+        {phase === 'playing' && <WorldStatus />}
         {phase === 'playing' && <DamageNumbers />}
         {phase === 'menu' && <StartScreen onStart={start} />}
         {phase === 'menu' && <ProfilePanel />}
