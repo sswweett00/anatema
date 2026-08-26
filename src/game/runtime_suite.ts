@@ -18,6 +18,7 @@ import { resetMotionRuntime, startMotionRuntime } from './motion_runtime'
 import { resetExpandedAbilityRuntime, startExpandedAbilityRuntime } from './expanded_ability_runtime'
 import { resetSystemIntegrity, startSystemIntegrity } from './system_integrity'
 import { resetAbilityActivationRuntime, startAbilityActivationRuntime } from './ability_activation_runtime'
+import { resetAbilityPassiveCompletion, startAbilityPassiveCompletion } from './ability_passive_completion'
 
 type Stop = () => void
 type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
@@ -34,6 +35,7 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'combat-polish', start: startCombatPolish, reset: resetCombatPolish },
   { name: 'expanded-abilities', start: startExpandedAbilityRuntime, reset: resetExpandedAbilityRuntime },
   { name: 'ability-activation', start: startAbilityActivationRuntime, reset: resetAbilityActivationRuntime },
+  { name: 'ability-passive-completion', start: startAbilityPassiveCompletion, reset: resetAbilityPassiveCompletion },
   { name: 'status-effects', start: startStatusRuntime, reset: resetStatusRuntime },
   { name: 'boss-ai', start: startBossAI, reset: resetBossAI },
   { name: 'progression', start: startProgressionRuntime, reset: resetProgressionRuntime },
