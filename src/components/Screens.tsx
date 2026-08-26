@@ -11,6 +11,13 @@ import {
   Shield,
   Heart,
   Sparkles,
+  CloudLightning,
+  Snowflake,
+  Tornado,
+  Eye,
+  Magnet,
+  Angry,
+  Link2,
 } from 'lucide-react'
 import { gameState, setPhase } from '../ecs/world'
 import {
@@ -18,6 +25,7 @@ import {
   getDef,
   rollChoices,
   applyAbility,
+  ownedSynergies,
   MAX_LVL,
   type AbilityId,
 } from '../game/abilities'
@@ -89,8 +97,10 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
           </div>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-ash md:text-[15px]">
             Pas, imparatorlukları yuttu; geriye goblinler, iskeletler ve balçıktan doğan
-            dehşetler kaldı. Büyük kılıcın kendi savrulur — sen sadece hayatta kal. Ruh
-            kestikçe seviye atla, her seviyede üç güçten birini seç ve kendi kombinasyonunu kur.
+            dehşetler kaldı. Büyük kılıcın kendi savrulur — sen sadece hayatta kal. Seri
+            kesimler <b className="text-ember">kombo</b> kurar, kombo tecrübeyi katlar; ruh
+            kestikçe seviye atla, <b className="text-ember">14 yetenekten</b> üçünü seç, doğru
+            ikililerle <b className="text-ember">sinerji</b> aç ve kendi kıyametini kur.
           </p>
         </div>
 
@@ -182,9 +192,16 @@ const ABILITY_ICONS: Record<AbilityId, typeof Flame> = {
   arrows: Crosshair,
   nova: Flame,
   orbit: Orbit,
+  chain: Zap,
+  storm: CloudLightning,
+  frost: Snowflake,
+  vortex: Tornado,
   heart: HeartPulse,
   swift: Wind,
   armor: Shield,
+  crit: Eye,
+  magnet: Magnet,
+  rage: Angry,
   mend: Heart,
 }
 
@@ -299,6 +316,25 @@ export function LevelUpScreen() {
           })}
         </div>
 
+        {/* sahip olunan sinerjiler */}
+        {ownedSynergies().length > 0 && (
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            {ownedSynergies().map((s) => (
+              <div
+                key={s.id}
+                className="plate flex items-center gap-2 px-3 py-1.5"
+                style={{ borderColor: '#7a5a1a' }}
+              >
+                <Link2 size={12} className="text-ember" />
+                <span className="text-[10px] font-extrabold tracking-[0.18em] text-ember">
+                  {s.name.toUpperCase()}
+                </span>
+                <span className="text-[9px] tracking-[0.08em] text-ash">— {s.desc}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="mt-6 text-[10px] tracking-[0.3em] text-ash/70">
           <kbd className="kbd">1</kbd> <kbd className="kbd">2</kbd> <kbd className="kbd">3</kbd>{' '}
           TUŞLARIYLA DA SEÇEBİLİRSİN
@@ -332,23 +368,29 @@ export function DeathScreen({ onRestart }: { onRestart: () => void }) {
           Kor kalp söndü, zırh küle döndü. Sürü bir an durdu... ve yeniden yürümeye başladı.
         </p>
 
-        <div className="plate mt-7 grid grid-cols-3 divide-x divide-[#3a2a1c]">
+        <div className="plate mt-7 grid grid-cols-4 divide-x divide-[#3a2a1c]">
           <div className="p-4">
-            <div className="text-[9px] font-bold tracking-[0.28em] text-ash">DAYANILAN</div>
-            <div className="font-display mt-1 text-3xl font-black text-bone">
+            <div className="text-[9px] font-bold tracking-[0.22em] text-ash">DAYANILAN</div>
+            <div className="font-display mt-1 text-2xl font-black text-bone md:text-3xl">
               {fmtTime(gameState.time)}
             </div>
           </div>
           <div className="p-4">
-            <div className="text-[9px] font-bold tracking-[0.28em] text-ash">KESİLEN CANAVAR</div>
-            <div className="font-display mt-1 text-3xl font-black text-ember">
+            <div className="text-[9px] font-bold tracking-[0.22em] text-ash">KESİLEN</div>
+            <div className="font-display mt-1 text-2xl font-black text-ember md:text-3xl">
               {gameState.kills}
             </div>
           </div>
           <div className="p-4">
-            <div className="text-[9px] font-bold tracking-[0.28em] text-ash">SEVİYE</div>
-            <div className="font-display mt-1 text-3xl font-black text-rust">
+            <div className="text-[9px] font-bold tracking-[0.22em] text-ash">SEVİYE</div>
+            <div className="font-display mt-1 text-2xl font-black text-rust md:text-3xl">
               {gameState.level}
+            </div>
+          </div>
+          <div className="p-4">
+            <div className="text-[9px] font-bold tracking-[0.22em] text-ash">MAKS KOMBO</div>
+            <div className="font-display mt-1 text-2xl font-black text-[#ff8a3d] md:text-3xl">
+              ×{gameState.maxCombo}
             </div>
           </div>
         </div>

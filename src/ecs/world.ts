@@ -32,6 +32,7 @@ export type Entity = {
   damage?: number
   dead?: boolean
   age?: number
+  slow?: number
   /* mermi */
   life?: number
   maxLife?: number
@@ -79,6 +80,9 @@ export const gameState = {
   slashYaw: 0,
   announceText: '',
   announceUntil: 0,
+  combo: 0,
+  comboTimer: 0,
+  maxCombo: 0,
 }
 
 export function announce(text: string, dur = 2.6) {
@@ -294,6 +298,9 @@ export function resetRun() {
   gameState.flashNova = 0
   gameState.slashAnim = 0
   gameState.slashYaw = 0
+  gameState.combo = 0
+  gameState.comboTimer = 0
+  gameState.maxCombo = 0
   gameState.announceText = 'OYUN BAŞLADI — SÜRÜ GELİYOR'
   gameState.announceUntil = 2.6
 }

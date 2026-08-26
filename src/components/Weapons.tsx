@@ -19,6 +19,7 @@ import {
   arrowCount,
   arrowDamage,
   arrowInterval,
+  rollDamage,
 } from '../game/abilities'
 
 /*
@@ -113,7 +114,6 @@ export default function Weapons() {
           gameState.slashYaw = yaw
           gameState.slashAnim = 1
 
-          const slashDmg = swordDamage() /* ağır hasar */
           const R2 = SLASH_RANGE * SLASH_RANGE
           const el = enemies.entities
           for (let i = 0; i < el.length; i++) {
@@ -123,7 +123,12 @@ export default function Weapons() {
             const ez = e.position.z - player.position.z
             const ed2 = ex * ex + ez * ez
             if (ed2 < R2) {
-              e.health -= Math.max(2, slashDmg - e.armor)
+              const roll = rollDamage(swordDamage(), player) /* ağır hasar + kritik */
+              e.health -= Math.max(2, roll.value - e.armor)
+              if (roll.crit) {
+                sfx.crit()
+                spawnBurst(e.position, 0xfff1b8, 6, 4.5, 0.4)
+              }
               e.hitFlash = 1
               const ed = Math.sqrt(ed2) || 1
               e.velocity.x += (ex / ed) * 11
@@ -173,7 +178,8 @@ export default function Weapons() {
           tmp.dir
             .set(best.position.x - player.position.x, 0, best.position.z - player.position.z)
             .normalize()
-          const dmg = arrowDamage()
+          const arrowRoll = rollDamage(arrowDamage(), player)
+          const dmg = arrowRoll.value
           const pierce = abilities.arrows >= 4 ? 2 : 1
           _origin.copy(player.position)
 

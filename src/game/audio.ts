@@ -104,10 +104,38 @@ export const sfx = {
     noise(0.06, 0.05, 1900)
     tone({ freq: 320, end: 140, dur: 0.05, type: 'triangle', vol: 0.04 })
   },
-  kill() {
-    if (!gate('kill', 70)) return
-    tone({ freq: 170, end: 46, dur: 0.2, type: 'triangle', vol: 0.12 })
-    noise(0.12, 0.05, 620)
+  kill(combo = 0) {
+    if (!gate('kill', 60)) return
+    /* kombo büyüdükçe perde yükselir — bağımlılık hissi */
+    const m = 1 + Math.min(combo, 30) * 0.022
+    tone({ freq: 165 * m, end: 46 * m, dur: 0.18, type: 'triangle', vol: 0.11 })
+    noise(0.1, 0.04, 620 * m)
+  },
+  crit() {
+    if (!gate('crit', 90)) return
+    tone({ freq: 900, end: 1600, dur: 0.1, type: 'square', vol: 0.07 })
+    tone({ freq: 1400, end: 2400, dur: 0.14, delay: 0.04, type: 'square', vol: 0.05 })
+  },
+  chain() {
+    if (!gate('chain', 80)) return
+    tone({ freq: 1300, end: 300, dur: 0.09, type: 'sawtooth', vol: 0.04 })
+    noise(0.05, 0.04, 3200)
+  },
+  storm() {
+    if (!gate('storm', 150)) return
+    noise(0.5, 0.14, 300)
+    tone({ freq: 70, end: 30, dur: 0.6, type: 'sawtooth', vol: 0.16 })
+    tone({ freq: 2200, end: 400, dur: 0.12, type: 'square', vol: 0.05 })
+  },
+  frost() {
+    if (!gate('frost', 200)) return
+    tone({ freq: 1800, end: 700, dur: 0.3, type: 'sine', vol: 0.06 })
+    noise(0.2, 0.05, 4200)
+  },
+  vortex() {
+    if (!gate('vortex', 200)) return
+    tone({ freq: 220, end: 60, dur: 0.5, type: 'sawtooth', vol: 0.1 })
+    noise(0.4, 0.06, 500)
   },
   hurt() {
     if (!gate('hurt', 120)) return

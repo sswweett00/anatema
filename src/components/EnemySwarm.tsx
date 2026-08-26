@@ -16,7 +16,15 @@ import {
   type Entity,
 } from '../ecs/world'
 import { sfx } from '../game/audio'
-import { abilities, XP_VALUES, xpForLevel, orbitDamage, orbitRadius } from '../game/abilities'
+import {
+  abilities,
+  XP_VALUES,
+  xpForLevel,
+  xpMultiplier,
+  orbitDamage,
+  orbitRadius,
+  rollDamage,
+} from '../game/abilities'
 
 /*
  * SÜRÜ SİSTEMİ — 3 canavar türü, 3 instancedMesh (3 draw-call).
@@ -30,6 +38,8 @@ import { abilities, XP_VALUES, xpForLevel, orbitDamage, orbitRadius } from '../g
 const WAVE_EVERY = 28
 const WHITE = new THREE.Color('#ffffff')
 const FLASH = new THREE.Color(3, 3, 3) /* HDR beyaz — vuruş flaşı */
+const HDR_WHITE = new THREE.Color(3, 3, 3)
+const FROST_TINT = new THREE.Color('#8fd0ff')
 let orbitTimer = 0
 
 /* ---------------- yardımcılar ---------------- */
@@ -261,6 +271,7 @@ function buildSlimeGeo(): THREE.BufferGeometry {
 
 export default function EnemySwarm() {
   const meshRefs = useRef<(THREE.InstancedMesh | null)[]>([null, null, null])
+  const milestone = useRef(0)
 
   const { geos, mats } = useMemo(
     () => ({
@@ -323,6 +334,12 @@ export default function EnemySwarm() {
     if (playing && player) {
       gameState.time += dt
 
+      /* kombo penceresi kapanırsa sayaç sıfırlanır */
+      if (gameState.comboTimer > 0) {
+        gameState.comboTimer -= dt
+        if (gameState.comboTimer <= 0) gameState.combo = 0
+      }
+
       /* ---- spawn direktörü: ÇOK AZ başlar, zamanla kabarır ---- */
       const target = Math.min(MAX_ENEMIES, 10 + gameState.time * 2.8)
       const deficit = target - enemies.entities.length
@@ -351,14 +368,30 @@ export default function EnemySwarm() {
         tmp.remove.push(e)
         gameState.kills++
         const kind = e.enemyKind ?? 0
-        gameState.xp += XP_VALUES[kind]
+        /* kombo sayacı: hızlı kesimler XP'yi katlar */
+        gameState.combo++
+        gameState.comboTimer = 2.4
+        if (gameState.combo > gameState.maxCombo) gameState.maxCombo = gameState.combo
+        gameState.xp += XP_VALUES[kind] * xpMultiplier(gameState.combo)
         spawnBurst(e.position, ENEMY_KINDS[kind].color, kind === 2 ? 12 : 6, 4, 0.65)
-        sfx.kill()
-        /* Kan Bağı: her kesimde küçük can + duruş yenilenir */
+        sfx.kill(gameState.combo)
+        /* Demir Yürek: her kesimde küçük can + duruş yenilenir */
         player.health = Math.min(player.maxHealth, player.health + 0.6)
         player.poise = Math.min(player.maxPoise, player.poise + 8)
       }
       for (let i = 0; i < tmp.remove.length; i++) world.remove(tmp.remove[i])
+
+      /* ---- kilometre taşları: her 50 kesimde sürü kudurur ---- */
+      if (gameState.kills < milestone.current * 50) milestone.current = 0 /* yeni koşu */
+      const ms = Math.floor(gameState.kills / 50)
+      if (ms > milestone.current) {
+        milestone.current = ms
+        announce(`${ms * 50} RUH KESİLDİ — SÜRÜ AZGINLAŞIYOR`)
+        gameState.shake = Math.min(1, gameState.shake + 0.45)
+        sfx.wave()
+        /* ödül: küçük can */
+        player.health = Math.min(player.maxHealth, player.health + 10)
+      }
 
       /* ---- seviye atlamalar ---- */
       while (gameState.xp >= gameState.xpNext) {
@@ -393,6 +426,13 @@ export default function EnemySwarm() {
         const d = Math.sqrt(d2) || 0.001
         tmp.dir.divideScalar(d)
 
+        /* ayaz yavaşlatması */
+        let speedMul = 1
+        if (e.slow !== undefined && e.slow > 0) {
+          e.slow -= dt
+          speedMul = 0.42
+        }
+
         /* teğetsel salınım — sürü olduğu yerde dönüp kaynasın */
         const swirl = Math.sin(t * 1.7 + (e.phase ?? 0)) * 0.55
         tmp.side.set(-tmp.dir.z, 0, tmp.dir.x).multiplyScalar(swirl)
@@ -401,8 +441,8 @@ export default function EnemySwarm() {
         const stop = Math.min(1, Math.max(0, (d - (e.radius + player.radius)) / 1.2))
         tmp.desired
           .copy(tmp.dir)
-          .multiplyScalar(stop * e.speed)
-          .addScaledVector(tmp.side, e.speed * 0.55)
+          .multiplyScalar(stop * e.speed * speedMul)
+          .addScaledVector(tmp.side, e.speed * 0.55 * speedMul)
 
         e.velocity.lerp(tmp.desired, 1 - Math.exp(-3.4 * dt))
         e.position.addScaledVector(e.velocity, dt)
@@ -455,7 +495,6 @@ export default function EnemySwarm() {
           const outer = orbitRadius()
           const outer2 = outer * outer
           const inner2 = 0.5 * 0.5
-          const dmg = orbitDamage()
           const el = enemies.entities
           for (let i = 0; i < el.length; i++) {
             const e = el[i]
@@ -464,7 +503,9 @@ export default function EnemySwarm() {
             const dz = e.position.z - player.position.z
             const d2 = dx * dx + dz * dz
             if (d2 < outer2 && d2 > inner2) {
-              e.health -= Math.max(1, dmg - e.armor)
+              const roll = rollDamage(orbitDamage(), player)
+              e.health -= Math.max(1, roll.value - e.armor)
+              if (roll.crit) sfx.crit()
               e.hitFlash = 1
               const d = Math.sqrt(d2) || 1
               e.velocity.x += (dx / d) * 5
@@ -528,7 +569,11 @@ export default function EnemySwarm() {
       mesh.setMatrixAt(idx, tmp.dummy.matrix)
 
       /* vertex renkleri paleti taşır; instanceColor flaş + ton için çarpan */
-      tmp.color.copy(WHITE).lerp(new THREE.Color(3, 3, 3), flash * 0.6)
+      tmp.color.copy(WHITE).lerp(HDR_WHITE, flash * 0.6)
+      /* ayaz altındakiler buz mavisi */
+      if (e.slow !== undefined && e.slow > 0) {
+        tmp.color.multiply(FROST_TINT)
+      }
       mesh.setColorAt(idx, tmp.color)
       counts[kind]++
     }

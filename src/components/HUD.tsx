@@ -13,6 +13,12 @@ import {
   Orbit,
   Wind,
   Heart,
+  CloudLightning,
+  Snowflake,
+  Tornado,
+  Eye,
+  Magnet,
+  Angry,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { enemies, getPlayer, gameState } from '../ecs/world'
@@ -36,9 +42,16 @@ const ABILITY_ICONS: Record<AbilityId, typeof Flame> = {
   arrows: Crosshair,
   nova: Flame,
   orbit: Orbit,
+  chain: Zap,
+  storm: CloudLightning,
+  frost: Snowflake,
+  vortex: Tornado,
   heart: HeartPulse,
   swift: Wind,
   armor: Shield,
+  crit: Eye,
+  magnet: Magnet,
+  rage: Angry,
   mend: Heart,
 }
 
@@ -66,6 +79,11 @@ export default function HUD() {
   const novaSlotRef = useRef<HTMLDivElement>(null)
   const abilitySlotRefs = useRef<(HTMLDivElement | null)[]>([])
   const abilityLvlRefs = useRef<(HTMLSpanElement | null)[]>([])
+  const comboWrapRef = useRef<HTMLDivElement>(null)
+  const comboTextRef = useRef<HTMLSpanElement>(null)
+  const comboBarRef = useRef<HTMLDivElement>(null)
+  const comboPulse = useRef(0)
+  const lastCombo = useRef(0)
 
   const [muted, setMutedState] = useState(isMuted())
 
@@ -104,6 +122,27 @@ export default function HUD() {
         xpBar.current.style.width = `${Math.min(100, (gameState.xp / gameState.xpNext) * 100)}%`
       if (xpText.current)
         xpText.current.textContent = `${Math.floor(gameState.xp)}/${gameState.xpNext}`
+
+      /* kombo sayacı */
+      if (comboWrapRef.current) {
+        const c = gameState.combo
+        const visible = c >= 3 && gameState.phase === 'playing'
+        comboWrapRef.current.style.opacity = visible ? '1' : '0'
+        if (visible) {
+          if (lastCombo.current !== c) {
+            lastCombo.current = c
+            comboPulse.current = 1
+          }
+          if (comboTextRef.current) {
+            comboTextRef.current.textContent = `×${c}`
+            const s = 1 + comboPulse.current * 0.45
+            comboTextRef.current.style.transform = `scale(${s})`
+          }
+          if (comboBarRef.current)
+            comboBarRef.current.style.width = `${(gameState.comboTimer / 2.4) * 100}%`
+        }
+      }
+      comboPulse.current = Math.max(0, comboPulse.current - 0.07)
 
       /* yetenek rozetleri */
       for (let i = 0; i < ABILITIES.length; i++) {
@@ -278,6 +317,28 @@ export default function HUD() {
                 0
               </span>
               <span className="text-[9px] tracking-[0.2em] text-ash">SÜRÜ</span>
+            </div>
+          </div>
+
+          {/* kombo sayacı */}
+          <div
+            ref={comboWrapRef}
+            className="mt-2 flex flex-col items-center opacity-0 transition-opacity duration-200"
+          >
+            <span
+              ref={comboTextRef}
+              className="font-display text-3xl font-black leading-none text-ember"
+              style={{ textShadow: '0 0 18px rgba(255,138,61,0.8), 0 2px 0 #000' }}
+            >
+              ×0
+            </span>
+            <span className="text-[9px] font-bold tracking-[0.34em] text-rust">KOMBO</span>
+            <div className="mt-1 h-1 w-20 overflow-hidden bg-black/60">
+              <div
+                ref={comboBarRef}
+                className="h-full bg-gradient-to-r from-rust to-ember"
+                style={{ width: '0%' }}
+              />
             </div>
           </div>
         </div>

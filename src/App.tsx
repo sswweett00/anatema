@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
+import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
 import { onPhase, setPhase, resetRun, gameState, type Phase } from './ecs/world'
 import { initAudio, sfx } from './game/audio'
 import { resetAbilities } from './game/abilities'
@@ -8,6 +9,7 @@ import Environment from './components/Environment'
 import Player from './components/Player'
 import EnemySwarm from './components/EnemySwarm'
 import Weapons from './components/Weapons'
+import ActiveAbilities from './components/ActiveAbilities'
 import Particles from './components/Particles'
 import HUD from './components/HUD'
 import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './components/Screens'
@@ -26,7 +28,18 @@ const Scene = memo(function Scene() {
       <Player />
       <EnemySwarm />
       <Weapons />
+      <ActiveAbilities />
       <Particles />
+      <EffectComposer multisampling={0} enableNormalPass={false}>
+        <Bloom
+          mipmapBlur
+          intensity={0.85}
+          luminanceThreshold={0.32}
+          luminanceSmoothing={0.2}
+          radius={0.72}
+        />
+        <Vignette eskil={false} offset={0.24} darkness={0.82} />
+      </EffectComposer>
     </>
   )
 })
