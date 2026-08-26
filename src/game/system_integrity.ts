@@ -4,9 +4,9 @@ import { events } from './events'
 const EXPANDED_IDS: readonly AbilityId[] = [
   'meteor', 'gravitywell', 'soulbolts', 'bladestorm', 'arcanemine', 'bloodnova',
   'voidrift', 'mirrors', 'wolfpack', 'seismic', 'runeprison', 'frostfire',
-  'ward', 'overcharge', 'executioner', 'berserker', 'unbreakable', 'soulsiphon',
-  'shadowreflex', 'perfectgeometry', 'conduit', 'detonation', 'fortune', 'lifeforge',
-  'aegis', 'bloodart', 'celerity', 'deathsmark', 'soulharvest',
+  'ward', 'overcharge', 'executioner', 'berserker', 'resilience', 'siphon',
+  'evasion', 'precision', 'conduit', 'detonation', 'fortunesfavor', 'lifeforge',
+  'aegis', 'hemocraft', 'celerity', 'deathsmark', 'soulharvest',
 ]
 
 type IntegrityResult = { valid: boolean; errors: string[] }
