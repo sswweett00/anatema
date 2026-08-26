@@ -1,7 +1,8 @@
 import { Component, memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
-import { onPhase, setPhase, resetRun, gameState, enemies, type Phase } from './ecs/world'
+import * as THREE from 'three'
+import { onPhase, setPhase, resetRun, gameState, enemies, getPlayer, type Phase } from './ecs/world'
 import { initAudio, sfx } from './game/audio'
 import { resetAbilities } from './game/abilities'
 import { loadProfile, recordRun, type Profile, type QualityPreset } from './game/profile'
@@ -10,7 +11,7 @@ import { samplePerformance } from './game/performance_governor'
 import { validateCombatContent } from './game/content_validation'
 import { diagnosticsJson } from './game/diagnostics'
 import { resetRuntimeSuite, startRuntimeSuite } from './game/runtime_suite'
-import { resetGameServices } from './game/game_services'
+import { resetGameServices, startGameServices, stopGameServices } from './game/game_services'
 import { saveRunSnapshot } from './game/run_snapshot'
 import Environment from './components/Environment'
 import Player from './components/Player'
@@ -51,6 +52,9 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
   const controller = useRef(new PerformanceController(quality))
   const lastReport = useRef(0)
   const controllerQuality = useRef(quality)
+  const cameraTarget = useRef(new THREE.Vector3(26, 26, 26))
+  const cameraLookAt = useRef(new THREE.Vector3(0, 0, 0))
+  const lastPlayer = useRef(new THREE.Vector3())
 
   useEffect(() => {
     if (controllerQuality.current !== quality) {
@@ -62,9 +66,33 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
 
   useFrame((_, dt) => {
     try {
-      const snapshot = controller.current.sample(dt, enemies.entities.length)
-      samplePerformance(snapshot.fps, Math.max(0.05, dt))
-      lastReport.current += dt
+      const safeDt = Math.min(0.05, Math.max(0.001, dt))
+      const snapshot = controller.current.sample(safeDt, enemies.entities.length)
+      samplePerformance(snapshot.fps, safeDt)
+      lastReport.current += safeDt
+
+      const camera = _.camera as THREE.OrthographicCamera
+      const player = getPlayer()
+      if (player) {
+        const px = Number.isFinite(player.position.x) ? player.position.x : 0
+        const pz = Number.isFinite(player.position.z) ? player.position.z : 0
+        const vx = Number.isFinite(player.velocity.x) ? player.velocity.x : 0
+        const vz = Number.isFinite(player.velocity.z) ? player.velocity.z : 0
+        const speed = Math.min(1, Math.hypot(vx, vz) / 8)
+
+        lastPlayer.current.lerp(new THREE.Vector3(px, 0, pz), 1 - Math.exp(-5 * safeDt))
+        const lookX = lastPlayer.current.x * 0.16
+        const lookZ = lastPlayer.current.z * 0.16
+        cameraLookAt.current.set(lookX, 0, lookZ)
+
+        const targetX = 26 + vx * 0.08
+        const targetY = 26 + 0.4 * speed
+        const targetZ = 26 + vz * 0.08
+        cameraTarget.current.set(targetX, targetY, targetZ)
+        camera.position.lerp(cameraTarget.current, 1 - Math.exp(-4.5 * safeDt))
+        camera.lookAt(cameraLookAt.current)
+      }
+
       if (lastReport.current >= 0.5) {
         lastReport.current = 0
         onPerformance(snapshot)
@@ -76,8 +104,9 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
 
   return (
     <>
-      <color attach="background" args={['#241a11']} />
-      <fog attach="fog" args={['#241a11', 40, 140]} />
+      <color attach="background" args={['#20150f']} />
+      <fog attach="fog" args={['#20150f', 42, 155]} />
+      <ambientLight intensity={0.32} color="#d7c3b0" />
       <OrthographicCamera makeDefault position={[26, 26, 26]} zoom={42} near={-300} far={500} />
       <SceneIslandBoundary name="environment"><Environment /></SceneIslandBoundary>
       <SceneIslandBoundary name="glows"><Glows /></SceneIslandBoundary>
@@ -131,7 +160,13 @@ export default function App() {
   useEffect(() => {
     const validation = validateCombatContent()
     if (!validation.valid) console.error('[ANATHEMA] combat content validation failed', validation.errors)
-    return startRuntimeSuite()
+    const stopRuntime = startRuntimeSuite()
+    const stopServices = startGameServices()
+    return () => {
+      stopServices?.()
+      stopGameServices()
+      stopRuntime?.()
+    }
   }, [])
 
   useEffect(() => onPhase((next) => {
@@ -188,18 +223,36 @@ export default function App() {
     setPhase('playing')
   }, [])
 
-  const dpr: [number, number] = [performance.recommendedDpr, performance.recommendedDpr]
+  const baseDpr = Number.isFinite(performance.recommendedDpr) ? performance.recommendedDpr : 1
+  const dprMax = quality === 'high' ? 1.5 : quality === 'balanced' ? 1.25 : 1.1
+  const dprValue = Math.min(dprMax, Math.max(0.75, baseDpr))
+  const dpr: [number, number] = [dprValue * 0.9, dprValue]
 
   return (
     <EmberBoundary>
       <div className="font-body text-bone bg-void relative h-dvh w-screen overflow-hidden">
-        <Canvas shadows dpr={dpr} gl={{ antialias: performance.recommendedDpr >= 1, powerPreference: 'high-performance' }}>
+        <Canvas
+          shadows="soft"
+          dpr={dpr}
+          gl={{
+            antialias: true,
+            alpha: false,
+            powerPreference: 'high-performance',
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.12,
+          }}
+          onCreated={({ gl }) => {
+            gl.outputColorSpace = THREE.SRGBColorSpace
+            gl.shadowMap.enabled = true
+            gl.shadowMap.type = THREE.PCFSoftShadowMap
+          }}
+        >
           <Scene quality={quality} onPerformance={setPerformance} />
         </Canvas>
         <div className="vignette pointer-events-none absolute inset-0 z-10" />
         {import.meta.env.DEV && phase === 'playing' && (
           <div className="pointer-events-none absolute left-3 top-3 z-50 rounded bg-black/50 px-2 py-1 font-mono text-[10px] text-white/70">
-            {Math.round(performance.fps)} FPS · {enemies.entities.length} ENEMIES · {quality.toUpperCase()} · {performance.recommendedDpr.toFixed(2)}× DPR
+            {Math.round(performance.fps)} FPS · {enemies.entities.length} ENEMIES · {quality.toUpperCase()} · {dprValue.toFixed(2)}× DPR
           </div>
         )}
         {(phase === 'playing' || phase === 'paused' || phase === 'levelup') && <HUD />}
