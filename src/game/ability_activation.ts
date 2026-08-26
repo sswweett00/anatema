@@ -1,4 +1,4 @@
-import { ABILITIES, MEND_DEF, type AbilityId, abilities } from './abilities'
+import { ABILITIES, type AbilityId, abilities } from './abilities'
 import { events } from './events'
 
 export type AbilityRuntimeKind = 'active' | 'passive'
@@ -15,9 +15,8 @@ const LEGACY_ACTIVE_IDS = new Set<AbilityId>([
   'arrows', 'nova', 'orbit', 'chain', 'storm', 'frost', 'vortex', 'spikes', 'pyre', 'phantom', 'venom',
 ])
 
-const defs = [...ABILITIES, ...(ABILITIES.some(({ id }) => id === MEND_DEF.id) ? [] : [MEND_DEF])]
-const ids = defs.map(({ id }) => id)
-const defById = new Map(defs.map((def) => [def.id, def]))
+const ids = ABILITIES.map(({ id }) => id)
+const defById = new Map(ABILITIES.map((def) => [def.id, def]))
 
 export function allAbilityIds(): readonly AbilityId[] {
   return ids
@@ -45,7 +44,7 @@ export function validateAbilityActivation(): { valid: boolean; errors: string[] 
   const errors: string[] = []
   const seen = new Set<AbilityId>()
 
-  for (const def of defs) {
+  for (const def of ABILITIES) {
     const id = def.id
     if (seen.has(id)) errors.push(`duplicate ability activation id: ${id}`)
     seen.add(id)
