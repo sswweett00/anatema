@@ -25,6 +25,16 @@ import {
   Droplet,
   Mountain,
   Moon,
+  ShieldAlert,
+  LifeBuoy,
+  Target,
+  Gauge,
+  Activity,
+  Castle,
+  Gem,
+  Wheat,
+  BookOpen,
+  Crown,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { enemies, getPlayer, gameState } from '../ecs/world'

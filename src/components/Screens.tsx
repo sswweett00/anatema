@@ -25,6 +25,16 @@ import {
   Droplet,
   Mountain,
   Moon,
+  ShieldAlert,
+  LifeBuoy,
+  Target,
+  Gauge,
+  Activity,
+  Castle,
+  Gem,
+  Wheat,
+  BookOpen,
+  Crown,
 } from 'lucide-react'
 import { gameState, setPhase } from '../ecs/world'
 import {
@@ -33,6 +43,8 @@ import {
   rollChoices,
   applyAbility,
   ownedSynergies,
+  synLevel,
+  SYNERGIES,
   type AbilityId,
 } from '../game/abilities'
 import { sfx } from '../game/audio'
@@ -170,6 +182,13 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
                   yenilenir.
                 </span>
               </li>
+              <li className="flex items-start gap-2">
+                <Link2 size={14} className="mt-0.5 shrink-0 text-rust" />
+                <span>
+                  <b className="text-bone">26 sinerji:</b> doğru iki yetenek birleşince adı
+                  değişir ve yepyeni bir güce dönüşür.
+                </span>
+              </li>
             </ul>
           </div>
         </div>
@@ -216,6 +235,16 @@ const ABILITY_ICONS: Record<AbilityId, typeof Flame> = {
   stone: Mountain,
   ghoststep: Moon,
   ferocity: Skull,
+  thorns: ShieldAlert,
+  laststand: LifeBuoy,
+  focus: Target,
+  momentum: Gauge,
+  adrenaline: Activity,
+  bulwark: Castle,
+  greed: Gem,
+  harvest: Wheat,
+  scholar: BookOpen,
+  warlord: Crown,
   mend: Heart,
 }
 
@@ -337,27 +366,56 @@ export function LevelUpScreen() {
                 <p className="mt-3 min-h-[3.2em] text-[12.5px] leading-snug text-ash">
                   {def.desc}
                 </p>
+                {SYNERGIES.filter(
+                  (s) =>
+                    s.pair.includes(id) &&
+                    synLevel(s.id) === 0 &&
+                    abilities[s.pair[0] === id ? s.pair[1] : s.pair[0]] > 0
+                ).map((s) => (
+                  <div
+                    key={s.id}
+                    className="mt-2 border border-[#7a5a1a] bg-[#1c1206] px-2 py-1 text-[9px] font-extrabold tracking-[0.14em] text-ember"
+                  >
+                    <Link2 size={9} className="mr-1 inline" />
+                    {s.name.toUpperCase()} UYANIR · {s.desc}
+                  </div>
+                ))}
               </button>
             )
           })}
         </div>
 
-        {/* sahip olunan sinerjiler */}
+        {/* sahip olunan sinerjiler — hangi çiftin doğurduğu görünür */}
         {ownedSynergies().length > 0 && (
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-            {ownedSynergies().map((s) => (
-              <div
-                key={s.id}
-                className="plate flex items-center gap-2 px-3 py-1.5"
-                style={{ borderColor: '#7a5a1a' }}
-              >
-                <Link2 size={12} className="text-ember" />
-                <span className="text-[10px] font-extrabold tracking-[0.18em] text-ember">
-                  {s.name.toUpperCase()}
-                </span>
-                <span className="text-[9px] tracking-[0.08em] text-ash">— {s.desc}</span>
-              </div>
-            ))}
+          <div className="mx-auto mt-6 max-w-3xl">
+            <div className="mb-2 text-center text-[9px] font-bold tracking-[0.4em] text-rust">
+              UYANAN SİNERJİLER
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {ownedSynergies().map((s) => {
+                const a = getDef(s.pair[0]).name
+                const b = getDef(s.pair[1]).name
+                return (
+                  <div
+                    key={s.id}
+                    className="plate flex items-center gap-2 px-3 py-1.5"
+                    style={{ borderColor: '#7a5a1a' }}
+                    title={s.desc}
+                  >
+                    <Link2 size={12} className="text-ember" />
+                    <span className="text-[10px] font-extrabold tracking-[0.18em] text-ember">
+                      {s.name.toUpperCase()}
+                    </span>
+                    <span className="text-[9px] font-bold tracking-[0.06em] text-bone/80">
+                      {a} + {b}
+                    </span>
+                    <span className="font-display text-[10px] font-black text-rust">
+                      SV.{synLevel(s.id)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
