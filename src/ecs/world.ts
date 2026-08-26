@@ -103,9 +103,9 @@ export const MAX_ENEMIES = 1400
 
 /* 0: Goblin — hızlı, cılız | 1: İskelet — dengeli | 2: Balçık — yavaş, kalın */
 export const ENEMY_KINDS = [
-  { name: 'Goblin', hp: 12, speed: 3.5, scale: 0.8, dmg: 5, color: 0x7fae4a, radius: 0.34 },
-  { name: 'İskelet', hp: 26, speed: 2.6, scale: 1.0, dmg: 8, color: 0xd9cfb4, radius: 0.42 },
-  { name: 'Balçık', hp: 80, speed: 1.55, scale: 1.15, dmg: 13, color: 0x3fbf82, radius: 0.52 },
+  { name: 'Goblin', hp: 10, speed: 3.2, scale: 0.8, dmg: 4, color: 0x7fae4a, radius: 0.34 },
+  { name: 'İskelet', hp: 22, speed: 2.5, scale: 1.0, dmg: 7, color: 0xd9cfb4, radius: 0.42 },
+  { name: 'Balçık', hp: 70, speed: 1.5, scale: 1.15, dmg: 11, color: 0x3fbf82, radius: 0.52 },
 ] as const
 
 export function spawnEnemy(around: THREE.Vector3) {
@@ -118,10 +118,10 @@ export function spawnEnemy(around: THREE.Vector3) {
   let roll = Math.random() * (wGob + wSkel + wSlime)
   const kind = roll < wGob ? 0 : roll < wGob + wSkel ? 1 : 2
   const k = ENEMY_KINDS[kind]
-  const hpMul = 1 + (t / 120) * 0.35
-  const dmgMul = 1 + (t / 240) * 0.5
+  const hpMul = 1 + (t / 150) * 0.35
+  const dmgMul = 1 + (t / 300) * 0.45
   const ang = Math.random() * Math.PI * 2
-  const dist = 14 + Math.random() * 18
+  const dist = 24 + Math.random() * 18
   const e: Entity = {
     position: new THREE.Vector3(
       around.x + Math.cos(ang) * dist,
