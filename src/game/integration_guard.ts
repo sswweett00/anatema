@@ -2,7 +2,7 @@ import { events } from './events'
 import { getSimulationTime } from './simulation_clock'
 import { getMetaState } from './meta_progression'
 import { currentBiome } from './biome_runtime'
-import { abilities } from './abilities'
+import { getCanonicalContent, getOwnedAbilityCount } from './content_catalog'
 import { enemies, gameState, getPlayer, lootEntities } from '../ecs/world'
 
 type GuardSnapshot = {
@@ -13,11 +13,13 @@ type GuardSnapshot = {
   enemyCount: number
   lootCount: number
   abilityCount: number
+  ownedAbilityCount: number
   biome: string
   metaSouls: number
 }
 
 let lastReport = -Infinity
+let lastGameTime = -Infinity
 let stop: (() => void) | undefined
 
 function finite(value: number, fallback = 0): number {
@@ -28,9 +30,11 @@ function validate(snapshot: GuardSnapshot): string[] {
   const errors: string[] = []
   if (!Number.isFinite(snapshot.simulationTime)) errors.push('simulation clock invalid')
   if (!Number.isFinite(snapshot.gameTime)) errors.push('game time invalid')
+  if (snapshot.gameTime + 0.25 < lastGameTime) errors.push('game time moved backwards')
   if (snapshot.phase === 'playing' && !snapshot.playerPresent) errors.push('playing state has no player')
   if (snapshot.enemyCount > 1400) errors.push('enemy population cap exceeded')
-  if (snapshot.abilityCount < 1) errors.push('ability catalog empty')
+  if (snapshot.abilityCount < 1) errors.push('canonical ability catalog empty')
+  if (snapshot.ownedAbilityCount > snapshot.abilityCount) errors.push('owned ability count exceeds catalog')
   if (!snapshot.biome) errors.push('biome unavailable')
   if (snapshot.metaSouls < 0) errors.push('meta currency negative')
   return errors
@@ -38,6 +42,7 @@ function validate(snapshot: GuardSnapshot): string[] {
 
 function report(): void {
   const meta = getMetaState()
+  const content = getCanonicalContent()
   const snapshot: GuardSnapshot = {
     simulationTime: getSimulationTime(),
     gameTime: finite(gameState.time),
@@ -45,12 +50,14 @@ function report(): void {
     playerPresent: Boolean(getPlayer()),
     enemyCount: enemies.entities.length,
     lootCount: lootEntities.entities.length,
-    abilityCount: Object.keys(abilities).length,
+    abilityCount: content.abilityCount,
+    ownedAbilityCount: getOwnedAbilityCount(),
     biome: currentBiome().id,
     metaSouls: Math.max(0, Math.floor(meta.souls)),
   }
 
   const errors = validate(snapshot)
+  lastGameTime = snapshot.gameTime
   if (errors.length) {
     events.emit('runtime:error', {
       system: 'integration-guard',
@@ -77,4 +84,5 @@ export function stopIntegrationGuard(): void {
 export function resetIntegrationGuard(): void {
   stopIntegrationGuard()
   lastReport = -Infinity
+  lastGameTime = -Infinity
 }
