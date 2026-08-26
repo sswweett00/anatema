@@ -23,9 +23,10 @@ const state: InputState = {
 
 const held = new Set<string>()
 let initialized = false
-let unsubscribePhase: (() => void) | undefined
+let frame = 0
+let last = 0
 
-const MOVEMENT_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'])
+const MOVEMENT_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'])
 
 function setKey(code: string, value: boolean): void {
   if (code === 'KeyA' || code === 'ArrowLeft') state.left = value
@@ -52,8 +53,19 @@ export function startInputAssist(): () => void {
   initialized = true
   window.addEventListener('keydown', onKeyDown, { passive: false })
   window.addEventListener('keyup', onKeyUp)
-  unsubscribePhase = () => undefined
+  last = performance.now()
+  frame = window.requestAnimationFrame(loop)
   return stopInputAssist
+}
+
+function loop(now: number): void {
+  if (!initialized) return
+  const dt = Math.max(0.001, Math.min(0.05, (now - last) / 1000))
+  last = now
+  assistPlayerIntent(dt)
+  state.dashAge = state.dashQueued ? Math.min(0.18, state.dashAge + dt) : 0
+  if (state.dashAge >= 0.18) state.dashQueued = false
+  frame = window.requestAnimationFrame(loop)
 }
 
 export function stopInputAssist(): void {
@@ -61,11 +73,13 @@ export function stopInputAssist(): void {
   initialized = false
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
+  if (frame) window.cancelAnimationFrame(frame)
+  frame = 0
+  last = 0
   held.clear()
   state.left = state.right = state.up = state.down = false
   state.dashQueued = state.attackQueued = false
-  unsubscribePhase?.()
-  unsubscribePhase = undefined
+  state.dashAge = 0
 }
 
 export function resetInputAssist(): void {
@@ -74,7 +88,7 @@ export function resetInputAssist(): void {
   state.dashAge = 0
 }
 
-export function sampleMovement(dt: number): { x: number; z: number } {
+export function sampleMovement(): { x: number; z: number } {
   const x = Number(state.right) - Number(state.left)
   const z = Number(state.down) - Number(state.up)
   const length = Math.hypot(x, z)
@@ -84,6 +98,7 @@ export function sampleMovement(dt: number): { x: number; z: number } {
 export function consumeDash(): boolean {
   if (!state.dashQueued || gameState.phase !== 'playing') return false
   state.dashQueued = false
+  state.dashAge = 0
   events.emit('player:dodge', { perfect: false })
   return true
 }
@@ -101,7 +116,7 @@ export function inputState(): Readonly<InputState> {
 export function assistPlayerIntent(dt: number): void {
   const player = getPlayer()
   if (!player || gameState.phase !== 'playing') return
-  const move = sampleMovement(dt)
+  const move = sampleMovement()
   const smoothing = 1 - Math.exp(-dt * 14)
   player.velocity.x += (move.x * player.speed - player.velocity.x) * smoothing
   player.velocity.z += (move.z * player.speed - player.velocity.z) * smoothing
