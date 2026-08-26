@@ -8,10 +8,10 @@ import { loadProfile, recordRun, type Profile, type QualityPreset } from './game
 import { PerformanceController, type PerformanceSnapshot } from './game/performance'
 import { resetRunDirector, startRunDirector } from './game/mechanics'
 import { resetAdvancedRuntime, startAdvancedRuntime } from './game/advanced_runtime'
+import { resetMegaSystems, startMegaSystems } from './game/mega_systems'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
-import AdvancedVFX from './components/AdvancedVFX'
 import EnemySwarm from './components/EnemySwarm'
 import Weapons from './components/Weapons'
 import ActiveAbilities from './components/ActiveAbilities'
@@ -53,7 +53,6 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
       <Glows />
       <Player />
       <AbilityVFX />
-      <AdvancedVFX />
       <EnemySwarm />
       <Weapons />
       <ActiveAbilities />
@@ -70,7 +69,7 @@ class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
 
   componentDidCatch(err: unknown) {
-    console.error('ANATHEMA — beklenmedik hata:', err)
+    console.error('ANATEMA — beklenmedik hata:', err)
   }
 
   render() {
@@ -105,12 +104,8 @@ export default function App() {
   const runRecorded = useRef(false)
 
   useEffect(() => {
-    const stopDirector = startRunDirector()
-    const stopAdvanced = startAdvancedRuntime()
-    return () => {
-      stopDirector()
-      stopAdvanced()
-    }
+    const stops = [startRunDirector(), startAdvancedRuntime(), startMegaSystems()]
+    return () => stops.forEach((stop) => stop())
   }, [])
 
   useEffect(() => onPhase((next) => {
@@ -157,6 +152,7 @@ export default function App() {
     }
     resetRunDirector()
     resetAdvancedRuntime()
+    resetMegaSystems()
     resetAbilities()
     resetRun()
     sfx.start()
