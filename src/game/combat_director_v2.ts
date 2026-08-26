@@ -2,14 +2,7 @@ import * as THREE from 'three'
 import { enemies, gameState, getPlayer, spawnBurst, spawnEnemy, type Entity } from '../ecs/world'
 import { nextRandom } from './rng'
 import { sfx } from './audio'
-
-/**
- * ANATHEMA combat director v2
- *
- * This layer does not own primary combat state. It adds encounter-level
- * behavior around the existing ECS/combat systems using WeakMaps so reset
- * and entity removal remain GC-friendly.
- */
+import { onSimulationTick } from './simulation_clock'
 
 type BossState = {
   nextCast: number
@@ -22,15 +15,12 @@ const splitConsumed = new WeakSet<Entity>()
 const lastHealth = new WeakMap<Entity, number>()
 const comboMilestones = new Set<number>()
 
-let running = false
-let frameId = 0
-let lastTime = 0
+let unsubscribe: (() => void) | undefined
 let directorTime = 0
 let pressureAccumulator = 0
 let cleanupAccumulator = 0
 
 const STEP = 1 / 30
-const MAX_STEP = 0.1
 const COMBO_MILESTONES = [10, 25, 50, 100]
 
 function finite(value: number, fallback = 0): number {
@@ -38,48 +28,34 @@ function finite(value: number, fallback = 0): number {
 }
 
 function isBoss(entity: Entity): boolean {
-  return Boolean(
-    entity.isEnemy &&
-    !entity.dead &&
-    ((entity.scale ?? 1) >= 2.3 || (entity.maxHealth ?? 0) >= 1200)
-  )
+  return Boolean(entity.isEnemy && !entity.dead && ((entity.scale ?? 1) >= 2.3 || (entity.maxHealth ?? 0) >= 1200))
 }
 
 function bossState(entity: Entity): BossState {
   let state = bossStates.get(entity)
   if (!state) {
-    state = {
-      nextCast: directorTime + 2 + nextRandom() * 2,
-      phase: 1,
-      secondWindUsed: false,
-    }
+    state = { nextCast: directorTime + 2 + nextRandom() * 2, phase: 1, secondWindUsed: false }
     bossStates.set(entity, state)
   }
   return state
 }
 
 function spawnSplitChildren(parent: Entity): void {
-  if (splitConsumed.has(parent)) return
-  if (parent.dead !== true) return
-
+  if (splitConsumed.has(parent) || parent.dead !== true) return
   const maxHp = finite(parent.maxHealth)
   const scale = finite(parent.scale, 1)
-
-  // Only meaningfully large enemies split; normal trash stays cheap.
   if (maxHp < 55 || scale < 1.1 || scale > 2.2) return
   splitConsumed.add(parent)
 
   const count = maxHp >= 260 ? 3 : 2
   const player = getPlayer()
   if (!player) return
-
   for (let i = 0; i < count; i++) {
     const before = enemies.entities.length
     if (before >= 1398) break
     spawnEnemy(parent.position)
     const child = enemies.entities[before]
     if (!child) continue
-
     const angle = (Math.PI * 2 * i) / count + nextRandom() * 0.35
     const radius = Math.max(0.55, (parent.radius ?? 0.35) * 1.8)
     child.position.x += Math.cos(angle) * radius
@@ -91,7 +67,6 @@ function spawnSplitChildren(parent: Entity): void {
     child.speed *= 1.08
     child.velocity.set(Math.cos(angle) * 1.8, 0, Math.sin(angle) * 1.8)
   }
-
   spawnBurst(parent.position, 0xff8a3d, Math.min(18, count * 6), 4.2, 0.55)
   sfx.storm()
 }
@@ -99,10 +74,8 @@ function spawnSplitChildren(parent: Entity): void {
 function tickBosses(): void {
   const player = getPlayer()
   if (!player) return
-
   for (const enemy of enemies.entities) {
     if (!isBoss(enemy)) continue
-
     const state = bossState(enemy)
     const ratio = Math.max(0, Math.min(1, enemy.health / Math.max(1, enemy.maxHealth)))
 
@@ -131,10 +104,8 @@ function tickBosses(): void {
     if (directorTime >= state.nextCast && !enemy.dead) {
       const interval = state.phase === 3 ? 4.7 : state.phase === 2 ? 6.2 : 8.3
       state.nextCast = directorTime + interval + nextRandom() * 1.4
-
       const burstCount = state.phase === 3 ? 22 : state.phase === 2 ? 16 : 11
       spawnBurst(enemy.position, state.phase === 3 ? 0xff6235 : 0xffb65e, burstCount, 5 + state.phase, 0.55)
-
       const distance = enemy.position.distanceTo(player.position)
       if (distance < 7.5) {
         const push = new THREE.Vector3().subVectors(player.position, enemy.position)
@@ -150,7 +121,6 @@ function tickBosses(): void {
 
 function tickComboEscalation(): void {
   const combo = Math.max(0, Math.trunc(gameState.combo))
-
   for (const milestone of COMBO_MILESTONES) {
     if (combo < milestone || comboMilestones.has(milestone)) continue
     comboMilestones.add(milestone)
@@ -158,7 +128,6 @@ function tickComboEscalation(): void {
     spawnBurst(getPlayer()?.position ?? new THREE.Vector3(), milestone >= 50 ? 0xffdf8a : 0xf4b85a, Math.min(22, 6 + Math.floor(milestone / 5)), 3.2, 0.5)
     sfx.tier()
   }
-
   if (combo === 0) comboMilestones.clear()
 }
 
@@ -166,15 +135,12 @@ function tickPressure(dt: number): void {
   pressureAccumulator += dt
   if (pressureAccumulator < 0.5) return
   pressureAccumulator = 0
-
   const count = enemies.entities.length
   const waveFactor = Math.max(0, gameState.wave - 4) * 0.025
   const desired = Math.min(1, 0.2 + count / 1400 + waveFactor)
-
-  // At extreme population, inject less extra pressure and instead sharpen
-  // existing enemies so the scene stays readable and performant.
   if (desired > 0.86) {
-    for (let i = 0; i < enemies.entities.length; i += Math.max(1, Math.floor(enemies.entities.length / 80))) {
+    const stride = Math.max(1, Math.floor(enemies.entities.length / 80))
+    for (let i = 0; i < enemies.entities.length; i += stride) {
       const e = enemies.entities[i]
       if (!e || e.dead) continue
       e.speed = Math.min(8, Math.max(e.speed, (e.speed ?? 1) * 1.015))
@@ -188,18 +154,8 @@ function tickDeathTransitions(): void {
     if (!enemy.isEnemy) continue
     const previous = lastHealth.get(enemy)
     lastHealth.set(enemy, enemy.health)
-    if (previous === undefined) continue
-    if (previous > 0 && enemy.health <= 0) spawnSplitChildren(enemy)
+    if (previous !== undefined && previous > 0 && enemy.health <= 0) spawnSplitChildren(enemy)
   }
-}
-
-function cleanupState(): void {
-  cleanupAccumulator += STEP
-  if (cleanupAccumulator < 2) return
-  cleanupAccumulator = 0
-  // WeakMap/WeakSet state self-cleans; this tick simply prevents stale
-  // milestone state from surviving a completed run.
-  if (gameState.phase === 'menu' || gameState.phase === 'dead') comboMilestones.clear()
 }
 
 function step(dt: number): void {
@@ -208,35 +164,38 @@ function step(dt: number): void {
   tickDeathTransitions()
   tickComboEscalation()
   tickPressure(dt)
-  cleanupState()
+  cleanupAccumulator += dt
+  if (cleanupAccumulator >= 2) {
+    cleanupAccumulator = 0
+    if (gameState.phase === 'menu' || gameState.phase === 'dead') comboMilestones.clear()
+  }
 }
 
-function loop(timeMs: number): void {
-  if (!running) return
-  const now = timeMs / 1000
-  const raw = lastTime === 0 ? STEP : now - lastTime
-  lastTime = now
-  const dt = Math.min(MAX_STEP, Math.max(0, raw))
-  frameId = requestAnimationFrame(loop)
+function onTick(dt: number): void {
+  let remaining = Math.min(0.1, Math.max(0, dt))
+  while (remaining > 0) {
+    const step = Math.min(STEP, remaining)
+    stepLogic(step)
+    remaining -= step
+  }
+}
+
+function stepLogic(dt: number): void {
   step(dt)
 }
 
 export function startCombatDirectorV2(): () => void {
-  if (running) return stopCombatDirectorV2
-  running = true
-  lastTime = 0
+  if (unsubscribe) return stopCombatDirectorV2
   directorTime = 0
   pressureAccumulator = 0
   cleanupAccumulator = 0
-  frameId = requestAnimationFrame(loop)
+  unsubscribe = onSimulationTick(onTick)
   return stopCombatDirectorV2
 }
 
 export function stopCombatDirectorV2(): void {
-  running = false
-  cancelAnimationFrame(frameId)
-  frameId = 0
-  lastTime = 0
+  unsubscribe?.()
+  unsubscribe = undefined
 }
 
 export function resetCombatDirectorV2(): void {
