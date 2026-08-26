@@ -1,4 +1,4 @@
-import { bullets, enemies, gameState, getPlayer, particles, players } from '../ecs/world'
+import { bullets, enemies, gameState, getPlayer, lootEntities, particles, players } from '../ecs/world'
 import { events } from './events'
 
 let timer = 0
@@ -10,6 +10,7 @@ export interface InvariantReport {
   enemyCount: number
   bulletCount: number
   particleCount: number
+  lootCount: number
 }
 
 function finiteVector(entity: { position: { x: number; y: number; z: number }; velocity: { x: number; y: number; z: number } }): boolean {
@@ -23,7 +24,7 @@ function finiteVector(entity: { position: { x: number; y: number; z: number }; v
 
 function repairFinite(): number {
   let violations = 0
-  const collections = [enemies.entities, bullets.entities, particles.entities]
+  const collections = [enemies.entities, bullets.entities, particles.entities, lootEntities.entities]
   for (const list of collections) {
     for (const entity of list) {
       if (!finiteVector(entity)) {
@@ -48,6 +49,14 @@ function repairFinite(): number {
         entity.speed = 0
         violations++
       }
+      if (!Number.isFinite(entity.life) || (entity.life ?? 0) < 0) {
+        entity.life = 0
+        violations++
+      }
+      if (!Number.isFinite(entity.value) || (entity.value ?? 0) < 0) {
+        entity.value = 0
+        violations++
+      }
     }
   }
 
@@ -70,6 +79,7 @@ export function verifyInvariants(): InvariantReport {
   if (enemies.entities.length > 1400) violations += enemies.entities.length - 1400
   if (bullets.entities.length > 320) violations += bullets.entities.length - 320
   if (particles.entities.length > 900) violations += particles.entities.length - 900
+  if (lootEntities.entities.length > 96) violations += lootEntities.entities.length - 96
   if (gameState.level < 1 || !Number.isFinite(gameState.level)) {
     gameState.level = 1
     violations++
@@ -90,6 +100,7 @@ export function verifyInvariants(): InvariantReport {
     enemyCount: enemies.entities.length,
     bulletCount: bullets.entities.length,
     particleCount: particles.entities.length,
+    lootCount: lootEntities.entities.length,
   }
 
   if (violations > 0 && gameState.time - lastReport > 1) {
