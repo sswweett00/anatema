@@ -13,6 +13,7 @@ import { resetVfxEventRuntime, startVfxEventRuntime } from './vfx_event_runtime'
 import { resetWaveDirector, startWaveDirector } from './wave_director'
 import { resetInputAssist, startInputAssist } from './input_assist'
 import { resetPerformanceGovernor } from './performance_governor'
+import { resetGameServices, startGameServices } from './game_services'
 
 type Stop = () => void
 type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
@@ -30,6 +31,7 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'boss-ai', start: startBossAI, reset: resetBossAI },
   { name: 'progression', start: startProgressionRuntime, reset: resetProgressionRuntime },
   { name: 'vfx-events', start: startVfxEventRuntime, reset: resetVfxEventRuntime },
+  { name: 'world-services', start: startGameServices, reset: resetGameServices },
   { name: 'runtime-safety', start: startRuntimeSafety, reset: resetRuntimeSafety },
   { name: 'invariants', start: startInvariantRuntime, reset: resetInvariantRuntime },
 ]
