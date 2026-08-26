@@ -19,52 +19,52 @@ export function resolveRenderQuality(mode: QualityPreset, pressure: number): Ren
   switch (mode) {
     case 'low':
       return {
-        dprMin: 0.72,
-        dprMax: 1.0,
+        dprMin: 0.68,
+        dprMax: 0.95,
         antialias: false,
-        shadowMapSize: 1024,
-        shadowType: THREE.PCFSoftShadowMap,
-        exposure: 1.02,
-        pixelRatioScale: 0.9,
-        particleUpdateHz: 45,
-        environmentDensity: 0.72,
+        shadowMapSize: 768,
+        shadowType: THREE.PCFShadowMap,
+        exposure: 0.98,
+        pixelRatioScale: 0.86,
+        particleUpdateHz: 30,
+        environmentDensity: 0.62,
       }
     case 'high':
       return {
-        dprMin: 0.95,
-        dprMax: 1.85,
+        dprMin: 0.9,
+        dprMax: 1.75,
         antialias: true,
-        shadowMapSize: p > 0.7 ? 1536 : 2048,
+        shadowMapSize: p > 0.72 ? 1536 : 2048,
         shadowType: THREE.PCFSoftShadowMap,
-        exposure: 1.1,
+        exposure: 1.06,
         pixelRatioScale: 1,
-        particleUpdateHz: 60,
+        particleUpdateHz: p > 0.82 ? 45 : 60,
         environmentDensity: 1,
       }
     case 'balanced':
       return {
-        dprMin: 0.82,
-        dprMax: 1.45,
+        dprMin: 0.8,
+        dprMax: 1.5,
         antialias: true,
-        shadowMapSize: 1536,
+        shadowMapSize: p > 0.72 ? 1024 : 1536,
         shadowType: THREE.PCFSoftShadowMap,
-        exposure: 1.07,
-        pixelRatioScale: 0.96,
-        particleUpdateHz: 60,
-        environmentDensity: 0.9,
+        exposure: 1.03,
+        pixelRatioScale: 0.97,
+        particleUpdateHz: p > 0.8 ? 45 : 60,
+        environmentDensity: 0.92,
       }
     case 'auto':
     default:
       return {
-        dprMin: 0.78,
-        dprMax: p < 0.28 ? 1.65 : p < 0.58 ? 1.4 : 1.15,
-        antialias: p < 0.72,
-        shadowMapSize: p < 0.3 ? 2048 : p < 0.65 ? 1536 : 1024,
+        dprMin: 0.76,
+        dprMax: p < 0.22 ? 1.65 : p < 0.52 ? 1.45 : p < 0.76 ? 1.25 : 1.05,
+        antialias: p < 0.78,
+        shadowMapSize: p < 0.24 ? 2048 : p < 0.58 ? 1536 : 1024,
         shadowType: THREE.PCFSoftShadowMap,
-        exposure: 1.07,
-        pixelRatioScale: 1 - p * 0.08,
-        particleUpdateHz: p > 0.7 ? 30 : 60,
-        environmentDensity: 1 - p * 0.22,
+        exposure: 1.04 - p * 0.04,
+        pixelRatioScale: 1 - p * 0.1,
+        particleUpdateHz: p > 0.78 ? 30 : p > 0.55 ? 45 : 60,
+        environmentDensity: 1 - p * 0.25,
       }
   }
 }
