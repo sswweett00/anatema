@@ -1,9 +1,11 @@
-import { Component, memo, useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Component, memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { OrthographicCamera } from '@react-three/drei'
-import { onPhase, setPhase, resetRun, gameState, type Phase } from './ecs/world'
+import { onPhase, setPhase, resetRun, gameState, enemies, type Phase } from './ecs/world'
 import { initAudio, sfx } from './game/audio'
 import { resetAbilities } from './game/abilities'
+import { loadProfile, recordRun, type Profile } from './game/profile'
+import { PerformanceController, type PerformanceSnapshot } from './game/performance'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import EnemySwarm from './components/EnemySwarm'
@@ -15,13 +17,19 @@ import HUD from './components/HUD'
 import DamageNumbers from './components/DamageNumbers'
 import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './components/Screens'
 
-/*
- * Sahne bileşeni memo'lanır: faz değişimlerinde App yeniden render olsa
- * bile 3D ağaç asla yeniden kurulmaz. Oyun durumu tamamen ECS'tedir.
- * Parıltı efektleri sahne içi additif materyallerle yapılır —
- * compositor yok, her WebGL bağlamında garantili çalışır.
- */
-const Scene = memo(function Scene() {
+const Scene = memo(function Scene({ onPerformance }: { onPerformance: (snapshot: PerformanceSnapshot) => void }) {
+  const controller = useRef(new PerformanceController('auto'))
+  const lastReport = useRef(0)
+
+  useFrame((_, dt) => {
+    const snapshot = controller.current.sample(dt, enemies.entities.length)
+    lastReport.current += dt
+    if (lastReport.current >= 0.5) {
+      lastReport.current = 0
+      onPerformance(snapshot)
+    }
+  })
+
   return (
     <>
       <color attach="background" args={['#241a11']} />
@@ -37,8 +45,6 @@ const Scene = memo(function Scene() {
     </>
   )
 })
-
-/* ---------------- hata emniyeti: ekran asla kararmaz ---------------- */
 
 class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
@@ -57,16 +63,9 @@ class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean
         <div className="font-body bg-void text-bone flex h-dvh w-screen items-center justify-center">
           <div className="fade-rise mx-4 max-w-md text-center">
             <div className="text-[11px] font-bold tracking-[0.5em] text-rust">KÜLLER SAVRULDU</div>
-            <h1 className="font-display mt-3 text-4xl font-black tracking-[0.1em] text-bone">
-              BİR ŞEYLER KIRILDI
-            </h1>
-            <p className="mt-3 text-sm text-ash">
-              Ayin beklenmedik bir şekilde söndü. Yeniden doğ ve kaldığın yerden devam et.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="btn-rust font-display mt-7 inline-block px-10 py-3.5 text-base font-black tracking-[0.28em] text-[#ffe9d2]"
-            >
+            <h1 className="font-display mt-3 text-4xl font-black tracking-[0.1em] text-bone">BİR ŞEYLER KIRILDI</h1>
+            <p className="mt-3 text-sm text-ash">Ayin beklenmedik bir şekilde söndü. Yeniden doğ ve kaldığın yerden devam et.</p>
+            <button onClick={() => window.location.reload()} className="btn-rust font-display mt-7 inline-block px-10 py-3.5 text-base font-black tracking-[0.28em] text-[#ffe9d2]">
               YENİDEN DOĞ
             </button>
           </div>
@@ -79,9 +78,31 @@ class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean
 
 export default function App() {
   const [phase, setPh] = useState<Phase>('menu')
+  const [profile, setProfile] = useState<Profile>(() => loadProfile())
+  const [performance, setPerformance] = useState<PerformanceSnapshot>({
+    fps: 60,
+    frameMs: 16.7,
+    pressure: 0,
+    recommendedDpr: 1,
+    particleScale: 0.7,
+    enemyScale: 0.9,
+  })
+  const runRecorded = useRef(false)
 
-  /* faz değişimleri ECS'ten gelir — tek re-render noktası burası */
-  useEffect(() => onPhase(setPh), [])
+  useEffect(() => onPhase((next) => {
+    setPh(next)
+    if (next === 'playing') runRecorded.current = false
+    if (next === 'dead' && !runRecorded.current) {
+      runRecorded.current = true
+      setProfile(recordRun({
+        kills: gameState.kills,
+        level: gameState.level,
+        maxCombo: gameState.maxCombo,
+        duration: gameState.time,
+        timestamp: Date.now(),
+      }))
+    }
+  }), [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -92,6 +113,15 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    const onProfile = (e: Event) => {
+      const detail = (e as CustomEvent<Profile>).detail
+      if (detail) setProfile(detail)
+    }
+    window.addEventListener('anatema:profile', onProfile)
+    return () => window.removeEventListener('anatema:profile', onProfile)
   }, [])
 
   const start = useCallback(() => {
@@ -106,23 +136,30 @@ export default function App() {
     setPhase('playing')
   }, [])
 
+  const dpr: [number, number] = [performance.recommendedDpr, performance.recommendedDpr]
+
   return (
     <EmberBoundary>
       <div className="font-body text-bone bg-void relative h-dvh w-screen overflow-hidden">
         <Canvas
           shadows
-          dpr={[1, 1.5]}
-          gl={{ antialias: true, powerPreference: 'high-performance' }}
+          dpr={dpr}
+          gl={{ antialias: performance.recommendedDpr >= 1, powerPreference: 'high-performance' }}
         >
-          <Scene />
+          <Scene onPerformance={setPerformance} />
         </Canvas>
 
-        {/* sinematik vinyet */}
         <div className="vignette pointer-events-none absolute inset-0 z-10" />
+
+        {import.meta.env.DEV && phase === 'playing' && (
+          <div className="pointer-events-none absolute left-3 top-3 z-50 rounded bg-black/50 px-2 py-1 font-mono text-[10px] text-white/70">
+            {Math.round(performance.fps)} FPS · {enemies.entities.length} ENEMIES · {performance.recommendedDpr.toFixed(2)}× DPR
+          </div>
+        )}
 
         {(phase === 'playing' || phase === 'paused' || phase === 'levelup') && <HUD />}
         {phase === 'playing' && <DamageNumbers />}
-        {phase === 'menu' && <StartScreen onStart={start} />}
+        {phase === 'menu' && <StartScreen onStart={start} profile={profile} />}
         {phase === 'dead' && <DeathScreen onRestart={start} />}
         {phase === 'paused' && <PauseScreen />}
         {phase === 'levelup' && <LevelUpScreen />}
