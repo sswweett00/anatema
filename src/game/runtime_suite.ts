@@ -1,5 +1,4 @@
 import { resetRunDirector, startRunDirector } from './mechanics'
-import { resetAdvancedRuntime, startAdvancedRuntime } from './advanced_runtime'
 import { resetMegaSystemsV2, startMegaSystemsV2 } from './mega_systems_v2'
 import { resetMegaCompletion, startMegaCompletion } from './mega_completion'
 import { resetCombatPolish, startCombatPolish } from './combat_polish'
@@ -51,7 +50,6 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'motion', start: startMotionRuntime, reset: resetMotionRuntime },
   { name: 'run-director', start: startRunDirector, reset: resetRunDirector },
   { name: 'wave-director', start: startWaveDirector, reset: resetWaveDirector },
-  { name: 'advanced-combat', start: startAdvancedRuntime, reset: resetAdvancedRuntime },
   { name: 'mega-systems', start: startMegaSystemsV2, reset: resetMegaSystemsV2 },
   { name: 'mega-completion', start: startMegaCompletion, reset: resetMegaCompletion },
   { name: 'combat-polish', start: startCombatPolish, reset: resetCombatPolish },
