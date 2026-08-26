@@ -21,6 +21,7 @@ export type GameplayEventMap = {
   'run:mutator': { mutator: string; level: number; active: boolean }
   'run:ascend': { tier: number }
   'ability:evolve': { abilityId: string; evolutionId: string; level: number }
+  'ability:snapshot': { total: number; activeOwned: number; passiveOwned: number; owned: string[] }
   'arena:biome': { biome: string; hazard: string; wave: number }
   'achievement:unlock': { id: string; title: string }
   'performance:pressure': { pressure: number; fps: number }
