@@ -1,0 +1,6 @@
+{
+  "name": "Kül Şövalyesi - Ember Knight Survivor",
+  "description": "An action roguelike survivor game where you battle hordes of demonic enemies with customizable abilities and elemental synergies.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
