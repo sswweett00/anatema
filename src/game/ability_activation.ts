@@ -16,7 +16,9 @@ const LEGACY_ACTIVE_IDS = new Set<AbilityId>([
 ])
 
 const ids = ABILITIES.map(({ id }) => id)
+const idSet = new Set(ids)
 const defById = new Map(ABILITIES.map((def) => [def.id, def]))
+let lastSnapshotSignature = ''
 
 export function allAbilityIds(): readonly AbilityId[] {
   return ids
@@ -62,6 +64,10 @@ export function validateAbilityActivation(): { valid: boolean; errors: string[] 
     }
   }
 
+  for (const id of Object.keys(abilities) as AbilityId[]) {
+    if (!idSet.has(id)) errors.push(`mutable ability state missing from catalog: ${id}`)
+  }
+
   for (const id of LEGACY_ACTIVE_IDS) {
     if (!seen.has(id)) errors.push(`legacy active ability missing from catalog: ${id}`)
     else if (abilityKind(id) !== 'active') errors.push(`legacy active ability typed as passive: ${id}`)
@@ -81,10 +87,14 @@ export function validateAbilityActivation(): { valid: boolean; errors: string[] 
   return result
 }
 
-export function emitAbilityActivationSnapshot(): void {
+export function emitAbilityActivationSnapshot(): boolean {
   const owned = ids.filter((id) => Number.isFinite(abilities[id]) && abilities[id] > 0)
   const activeOwned = owned.filter((id) => abilityKind(id) === 'active').length
   const passiveOwned = owned.length - activeOwned
+  const signature = `${activeOwned}|${passiveOwned}|${owned.join(',')}`
+
+  if (signature === lastSnapshotSignature) return false
+  lastSnapshotSignature = signature
 
   events.emit('ability:snapshot', {
     total: ids.length,
@@ -92,4 +102,9 @@ export function emitAbilityActivationSnapshot(): void {
     passiveOwned,
     owned,
   })
+  return true
+}
+
+export function resetAbilityActivationSnapshot(): void {
+  lastSnapshotSignature = ''
 }
