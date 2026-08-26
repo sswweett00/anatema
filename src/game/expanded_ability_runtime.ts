@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { enemies, gameState, getPlayer, spawnBurst, type Entity } from '../ecs/world'
 import { abilities, rollDamage, synLevel, hasSynergy } from './abilities'
 import { events } from './events'
+import { onSimulationTick } from './simulation_clock'
 
 const timers: Record<string, number> = Object.create(null)
 const minePositions: THREE.Vector3[] = []
@@ -9,9 +10,7 @@ const mineLife: number[] = []
 const tmp = new THREE.Vector3()
 const tmp2 = new THREE.Vector3()
 let running = false
-let raf = 0
-let last = 0
-let accumulator = 0
+let unsubscribeTick: (() => void) | undefined
 
 const cooldown = (id: keyof typeof abilities, base: number, per: number, floor = 0.7) =>
   Math.max(floor, (base - abilities[id] * per) * (1 - Math.min(0.45, abilities.celerity * 0.012 + abilities.warlord * 0.01)))
@@ -21,8 +20,8 @@ function finite(v: number, fallback = 0): number { return Number.isFinite(v) ? v
 function damage(entity: Entity, base: number, player: Entity, element: 'physical'|'fire'|'ice'|'shock'|'poison'|'void' = 'physical'): number {
   if (entity.dead) return 0
   const roll = rollDamage(base, player)
-  const amount = Math.max(1, roll.value - entity.armor)
-  entity.health -= amount
+  const amount = Math.max(1, finite(roll.value) - finite(entity.armor))
+  entity.health = finite(entity.health, 0) - amount
   entity.hitFlash = 1
   entity.lastDmg = amount
   entity.lastCrit = roll.crit
@@ -30,7 +29,7 @@ function damage(entity: Entity, base: number, player: Entity, element: 'physical
   if (entity.health <= 0) {
     const overkill = Math.max(0, -entity.health)
     entity.dead = true
-    events.emit('combat:kill', { damage: amount, element, overkill, elite: Boolean(entity.enemyKind && entity.enemyKind >= 3), boss: false })
+    events.emit('combat:kill', { damage: amount, element, overkill, elite: Boolean((entity.enemyKind ?? 0) >= 3), boss: false })
   }
   return amount
 }
@@ -64,20 +63,31 @@ function tickActive(dt: number, player: Entity) {
       timers.meteor = cooldown('meteor', 7.4, 0.38, 2.2)
       const target = nearest(position, 22)
       if (target) {
+        const impactPosition = target.position.clone()
         const radius = 2.4 + abilities.meteor * 0.16 + synLevel('meteorstorm') * 0.18
-        spawnBurst(target.position, 0xffd58a, 26, 3.5, 1.0)
-        setTimeout(() => {
-          if (gameState.phase !== 'playing') return
-          eachNearby(target!.position, radius, (e, d2) => {
-            const falloff = 1 - Math.min(0.55, Math.sqrt(d2) / radius * 0.55)
-            damage(e, (80 + abilities.meteor * 34) * falloff, player, 'fire')
-            e.velocity.x += (e.position.x - target!.position.x) * 3
-            e.velocity.z += (e.position.z - target!.position.z) * 3
-          })
-          spawnBurst(target!.position, hasSynergy('meteorstorm') ? 0xfff0b0 : 0xff7138, 46, 8, 0.9)
-          gameState.shake = Math.min(1, gameState.shake + 0.72)
-        }, 420)
+        spawnBurst(impactPosition, 0xffd58a, 26, 3.5, 1.0)
+        timers['meteor-impact'] = 0.42
+        timers['meteor-x'] = impactPosition.x
+        timers['meteor-z'] = impactPosition.z
+        timers['meteor-radius'] = radius
       }
+    }
+  }
+
+  if (timers['meteor-impact'] !== undefined) {
+    timers['meteor-impact'] -= dt
+    if (timers['meteor-impact'] <= 0) {
+      const impact = tmp2.set(finite(timers['meteor-x']), 0, finite(timers['meteor-z']))
+      const radius = Math.max(0.1, finite(timers['meteor-radius'], 2.4))
+      delete timers['meteor-impact']; delete timers['meteor-x']; delete timers['meteor-z']; delete timers['meteor-radius']
+      eachNearby(impact, radius, (e, d2) => {
+        const falloff = 1 - Math.min(0.55, Math.sqrt(d2) / radius * 0.55)
+        damage(e, (80 + abilities.meteor * 34) * falloff, player, 'fire')
+        e.velocity.x += (e.position.x - impact.x) * 3
+        e.velocity.z += (e.position.z - impact.z) * 3
+      })
+      spawnBurst(impact, hasSynergy('meteorstorm') ? 0xfff0b0 : 0xff7138, 46, 8, 0.9)
+      gameState.shake = Math.min(1, gameState.shake + 0.72)
     }
   }
 
@@ -88,7 +98,7 @@ function tickActive(dt: number, player: Entity) {
       const radius = 5.5 + abilities.gravitywell * 0.25
       eachNearby(position, radius, (e, d2) => {
         const d = Math.sqrt(d2) || 1
-        const pull = (1 - d / radius) * (8 + abilities.gravitywell * 0.8)
+        const pull = Math.max(0, 1 - d / radius) * (8 + abilities.gravitywell * 0.8)
         e.velocity.x += (position.x - e.position.x) / d * pull
         e.velocity.z += (position.z - e.position.z) / d * pull
         damage(e, 18 + abilities.gravitywell * 10, player, 'void')
@@ -102,7 +112,9 @@ function tickActive(dt: number, player: Entity) {
     if (timers.soulbolts <= 0) {
       timers.soulbolts = cooldown('soulbolts', 3.8, 0.2, 1.0)
       const count = Math.min(8, 2 + abilities.soulbolts)
-      const candidates = enemies.entities.filter((e) => !e.dead).sort((a, b) => a.position.distanceToSquared(position) - b.position.distanceToSquared(position)).slice(0, count)
+      const candidates = enemies.entities.filter((e) => !e.dead)
+        .sort((a, b) => a.position.distanceToSquared(position) - b.position.distanceToSquared(position))
+        .slice(0, count)
       for (const e of candidates) {
         const bonus = e.health < e.maxHealth * 0.35 ? 1.7 : 1
         damage(e, (22 + abilities.soulbolts * 11) * bonus, player, 'void')
@@ -161,8 +173,7 @@ function tickActive(dt: number, player: Entity) {
       const radius = 4.3 + abilities.bloodnova * 0.22
       let total = 0
       eachNearby(position, radius, (e, d2) => {
-        const dealt = damage(e, 26 + abilities.bloodnova * 13 + missing * 0.28, player, 'bleed')
-        total += dealt * 0.2
+        total += damage(e, 26 + abilities.bloodnova * 13 + missing * 0.28, player, 'bleed') * 0.2
       })
       player.health = Math.min(player.maxHealth, player.health + total)
       spawnBurst(position, 0xb51f3b, 38, 6, 0.8)
@@ -186,7 +197,9 @@ function tickActive(dt: number, player: Entity) {
     timers.mirrors = (timers.mirrors ?? 0) - dt
     if (timers.mirrors <= 0) {
       timers.mirrors = cooldown('mirrors', 4.1, 0.18, 1.0)
-      const targets = enemies.entities.filter((e) => !e.dead).sort((a, b) => a.position.distanceToSquared(position) - b.position.distanceToSquared(position)).slice(0, Math.min(3, 1 + abilities.mirrors))
+      const targets = enemies.entities.filter((e) => !e.dead)
+        .sort((a, b) => a.position.distanceToSquared(position) - b.position.distanceToSquared(position))
+        .slice(0, Math.min(3, 1 + abilities.mirrors))
       for (const e of targets) damage(e, 24 + abilities.mirrors * 12, player, 'physical')
       spawnBurst(position, 0xdce9ff, 20 + abilities.mirrors * 2, 4.5, 0.55)
     }
@@ -198,10 +211,10 @@ function tickActive(dt: number, player: Entity) {
       timers.wolfpack = cooldown('wolfpack', 7.2, 0.3, 2.0)
       const count = Math.min(5, 1 + abilities.wolfpack)
       for (let i = 0; i < count; i++) {
-        const target = nearest(position, 12 + abilities.wolfpack * 0.4)
-        if (!target) break
-        damage(target, 30 + abilities.wolfpack * 14, player, 'physical')
-        spawnBurst(target.position, 0xb8c9de, 9, 3.8, 0.45)
+        const targetEnemy = nearest(position, 12 + abilities.wolfpack * 0.4)
+        if (!targetEnemy) break
+        damage(targetEnemy, 30 + abilities.wolfpack * 14, player, 'physical')
+        spawnBurst(targetEnemy.position, 0xb8c9de, 9, 3.8, 0.45)
       }
     }
   }
@@ -232,14 +245,14 @@ function tickActive(dt: number, player: Entity) {
     timers.runeprison = (timers.runeprison ?? 0) - dt
     if (timers.runeprison <= 0) {
       timers.runeprison = cooldown('runeprison', 10.5, 0.4, 3.2)
-      const target = nearest(position, 12, (e) => (e.enemyKind ?? 0) >= 2)
-      if (target) {
+      const targetEnemy = nearest(position, 12, (e) => (e.enemyKind ?? 0) >= 2)
+      if (targetEnemy) {
         const radius = 2.3 + abilities.runeprison * 0.12
-        eachNearby(target.position, radius, (e) => {
+        eachNearby(targetEnemy.position, radius, (e) => {
           e.slow = Math.max(e.slow ?? 0, 2.4)
           damage(e, 38 + abilities.runeprison * 17, player, 'void')
         })
-        spawnBurst(target.position, 0x8b66d9, 36, 4.8, 1.0)
+        spawnBurst(targetEnemy.position, 0x8b66d9, 36, 4.8, 1.0)
       }
     }
   }
@@ -269,17 +282,14 @@ function tickPassive(dt: number, player: Entity) {
       player.poise = Math.min(player.maxPoise, player.poise + 12 + abilities.ward * 5)
     }
   }
-
   if (abilities.overcharge > 0) {
     timers.overcharge = (timers.overcharge ?? 0) - dt
     if (timers.overcharge <= 0) {
       timers.overcharge = Math.max(3, 8 - abilities.overcharge * 0.25)
-      const radius = 3.5 + abilities.overcharge * 0.15
-      eachNearby(player.position, radius, (e) => damage(e, 14 + abilities.overcharge * 8, player, 'shock'))
+      eachNearby(player.position, 3.5 + abilities.overcharge * 0.15, (e) => damage(e, 14 + abilities.overcharge * 8, player, 'shock'))
       spawnBurst(player.position, 0x7dd8ff, 16 + abilities.overcharge, 4.2, 0.45)
     }
   }
-
   if (abilities.executioner > 0) {
     timers.executioner = (timers.executioner ?? 0) - dt
     if (timers.executioner <= 0) {
@@ -293,11 +303,7 @@ function tickPassive(dt: number, player: Entity) {
       }
     }
   }
-
-  if (abilities.resilience > 0) {
-    player.poise = Math.min(player.maxPoise, player.poise + dt * (2 + abilities.resilience * 0.8))
-  }
-
+  if (abilities.resilience > 0) player.poise = Math.min(player.maxPoise, player.poise + dt * (2 + abilities.resilience * 0.8))
   if (abilities.siphon > 0 && gameState.kills > 0) {
     timers.siphon = (timers.siphon ?? 0) - dt
     if (timers.siphon <= 0) {
@@ -305,11 +311,7 @@ function tickPassive(dt: number, player: Entity) {
       player.health = Math.min(player.maxHealth, player.health + 2 + abilities.siphon)
     }
   }
-
-  if (abilities.evasion > 0 && Math.hypot(player.velocity.x, player.velocity.z) > 6) {
-    player.invuln = Math.max(player.invuln ?? 0, Math.min(0.12, abilities.evasion * 0.012))
-  }
-
+  if (abilities.evasion > 0 && Math.hypot(player.velocity.x, player.velocity.z) > 6) player.invuln = Math.max(player.invuln ?? 0, Math.min(0.12, abilities.evasion * 0.012))
   if (abilities.conduit > 0) {
     timers.conduit = (timers.conduit ?? 0) - dt
     if (timers.conduit <= 0) {
@@ -321,7 +323,6 @@ function tickPassive(dt: number, player: Entity) {
       }
     }
   }
-
   if (abilities.detonation > 0) {
     timers.detonation = (timers.detonation ?? 0) - dt
     if (timers.detonation <= 0) {
@@ -335,7 +336,6 @@ function tickPassive(dt: number, player: Entity) {
       }
     }
   }
-
   if (abilities.fortunesfavor > 0 && gameState.kills > 0) {
     timers.fortunesfavor = (timers.fortunesfavor ?? 0) - dt
     if (timers.fortunesfavor <= 0) {
@@ -344,7 +344,6 @@ function tickPassive(dt: number, player: Entity) {
       gameState.announceUntil = gameState.time + 1.8
     }
   }
-
   if (abilities.aegis > 0 && player.health < player.maxHealth * (0.25 + abilities.aegis * 0.01)) {
     timers.aegis = (timers.aegis ?? 0) - dt
     if (timers.aegis <= 0) {
@@ -353,32 +352,22 @@ function tickPassive(dt: number, player: Entity) {
       spawnBurst(player.position, 0x9cc8ff, 16, 3.6, 0.5)
     }
   }
-
   if (abilities.hemocraft > 0 && player.health < player.maxHealth * 0.6) {
-    player.velocity.x *= 1 + Math.min(0.08, abilities.hemocraft * 0.008)
-    player.velocity.z *= 1 + Math.min(0.08, abilities.hemocraft * 0.008)
+    const hasteMul = 1 + Math.min(0.08, abilities.hemocraft * 0.008)
+    player.velocity.x *= hasteMul
+    player.velocity.z *= hasteMul
   }
-
   if (abilities.deathsmark > 0) {
     timers.deathsmark = (timers.deathsmark ?? 0) - dt
     if (timers.deathsmark <= 0) {
       timers.deathsmark = Math.max(1.2, 4 - abilities.deathsmark * 0.08)
-      for (const e of enemies.entities) {
-        if (!e.dead && e.age !== undefined && e.age > 7) e.lastDmg = Math.max(e.lastDmg ?? 0, 1)
-      }
+      for (const e of enemies.entities) if (!e.dead && (e.age ?? 0) > 7) e.lastDmg = Math.max(e.lastDmg ?? 0, 1)
     }
   }
-
   if (abilities.soulharvest > 0 && gameState.kills > 0 && gameState.kills % 25 === 0) {
     const key = 'soulharvestClaim'
-    if (!timers[key]) {
-      timers[key] = 1
-      gameState.shake = Math.min(1, gameState.shake + 0.28)
-      spawnBurst(player.position, 0xd9b8ff, 24, 4.8, 0.7)
-    }
-  } else if (gameState.kills % 25 !== 0) {
-    timers.soulharvestClaim = 0
-  }
+    if (!timers[key]) { timers[key] = 1; gameState.shake = Math.min(1, gameState.shake + 0.28); spawnBurst(player.position, 0xd9b8ff, 24, 4.8, 0.7) }
+  } else if (gameState.kills % 25 !== 0) timers.soulharvestClaim = 0
 }
 
 function tick(dt: number) {
@@ -392,30 +381,14 @@ function tick(dt: number) {
 export function startExpandedAbilityRuntime() {
   if (running || typeof window === 'undefined') return stopExpandedAbilityRuntime
   running = true
-  last = performance.now()
-  accumulator = 0
-  const loop = (now: number) => {
-    if (!running) return
-    accumulator += Math.min(0.1, (now - last) / 1000)
-    last = now
-    let steps = 0
-    while (accumulator >= 1 / 30 && steps < 4) {
-      tick(1 / 30)
-      accumulator -= 1 / 30
-      steps++
-    }
-    raf = window.requestAnimationFrame(loop)
-  }
-  raf = window.requestAnimationFrame(loop)
+  unsubscribeTick = onSimulationTick(tick)
   return stopExpandedAbilityRuntime
 }
 
 export function stopExpandedAbilityRuntime() {
   running = false
-  if (raf) window.cancelAnimationFrame(raf)
-  raf = 0
-  last = 0
-  accumulator = 0
+  unsubscribeTick?.()
+  unsubscribeTick = undefined
 }
 
 export function resetExpandedAbilityRuntime() {
