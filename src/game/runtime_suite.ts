@@ -5,6 +5,7 @@ import { resetMegaCompletion, startMegaCompletion } from './mega_completion'
 import { resetCombatPolish, startCombatPolish } from './combat_polish'
 import { resetRuntimeSafety, startRuntimeSafety } from './runtime_safety'
 import { resetProgressionRuntime, startProgressionRuntime } from './progression_runtime'
+import { resetEventBridge, startEventBridge } from './event_bridge'
 import { resetEvents } from './events'
 
 type Stop = () => void
@@ -23,6 +24,7 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'combat-polish', start: startCombatPolish, reset: resetCombatPolish },
   { name: 'runtime-safety', start: startRuntimeSafety, reset: resetRuntimeSafety },
   { name: 'progression', start: startProgressionRuntime, reset: resetProgressionRuntime },
+  { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
 ]
 
 let mounted = false
