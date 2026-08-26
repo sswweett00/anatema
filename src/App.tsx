@@ -8,7 +8,7 @@ import { loadProfile, recordRun, type Profile, type QualityPreset } from './game
 import { PerformanceController, type PerformanceSnapshot } from './game/performance'
 import { resetRunDirector, startRunDirector } from './game/mechanics'
 import { resetAdvancedRuntime, startAdvancedRuntime } from './game/advanced_runtime'
-import { resetMegaSystems, startMegaSystems } from './game/mega_systems'
+import { resetMegaSystemsV2, startMegaSystemsV2 } from './game/mega_systems_v2'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
@@ -69,7 +69,7 @@ class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
 
   componentDidCatch(err: unknown) {
-    console.error('ANATEMA — beklenmedik hata:', err)
+    console.error('ANATHEMA — beklenmedik hata:', err)
   }
 
   render() {
@@ -104,7 +104,7 @@ export default function App() {
   const runRecorded = useRef(false)
 
   useEffect(() => {
-    const stops = [startRunDirector(), startAdvancedRuntime(), startMegaSystems()]
+    const stops = [startRunDirector(), startAdvancedRuntime(), startMegaSystemsV2()]
     return () => stops.forEach((stop) => stop())
   }, [])
 
@@ -152,7 +152,7 @@ export default function App() {
     }
     resetRunDirector()
     resetAdvancedRuntime()
-    resetMegaSystems()
+    resetMegaSystemsV2()
     resetAbilities()
     resetRun()
     sfx.start()
