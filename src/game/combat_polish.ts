@@ -63,15 +63,15 @@ function separateSwarm(dt: number) {
 
   const radius = 0.72 + (1 - quality) * 0.15
   const radius2 = radius * radius
-  const maxNeighbors = list.length > 900 ? 3 : 5
   const repel = list.length > 900 ? 0.42 : 0.58
 
   for (let i = 0; i < list.length; i++) {
     const e = list[i]
     if (e.dead) continue
 
+    let neighbors = 0
     spatial.forEachNearby(e.position, radius, list, (other) => {
-      if (other === e) return
+      if (other === e || neighbors >= 5) return
       const dx = e.position.x - other.position.x
       const dz = e.position.z - other.position.z
       const d2 = dx * dx + dz * dz
@@ -80,11 +80,10 @@ function separateSwarm(dt: number) {
       const push = (1 - d / radius) * repel
       e.velocity.x += (dx / d) * push * dt * 12
       e.velocity.z += (dz / d) * push * dt * 12
+      neighbors++
     })
   }
 
-  // Keep the hash's work bounded under extreme swarm density by relying on the
-  // cell query itself and a final velocity clamp rather than scanning neighbors again.
   const maxSpeed = list.length > 1000 ? 7 : 8
   for (let i = 0; i < list.length; i++) {
     const e = list[i]
@@ -138,14 +137,7 @@ function tick(dt: number) {
     separateSwarm(dt)
   }
 
-  if (abilities.arrows > 0 && bullets.entities.length > 0) {
-    if (spatial.nearest(new THREE.Vector3(), 0, enemies.entities)) {
-      // no-op: keeps this branch allocation-free in normal execution; the grid
-      // has already been rebuilt above and nearest() is used by the projectile pass.
-    }
-    steerProjectiles(dt)
-  }
-
+  if (abilities.arrows > 0 && bullets.entities.length > 0) steerProjectiles(dt)
   comboFeedback()
 }
 
