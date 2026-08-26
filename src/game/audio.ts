@@ -8,16 +8,22 @@ let master: GainNode | null = null
 let muted = false
 
 export function initAudio() {
-  if (!ctx) {
-    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    if (!AC) return
-    ctx = new AC()
-    master = ctx.createGain()
-    master.gain.value = muted ? 0 : 0.5
-    master.connect(ctx.destination)
-    startDrone()
+  try {
+    if (!ctx) {
+      const AC =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      if (!AC) return
+      ctx = new AC()
+      master = ctx.createGain()
+      master.gain.value = muted ? 0 : 0.5
+      master.connect(ctx.destination)
+      startDrone()
+    }
+    if (ctx.state === 'suspended') void ctx.resume()
+  } catch (err) {
+    console.warn('WebAudio kullanılamıyor:', err)
   }
-  if (ctx.state === 'suspended') void ctx.resume()
 }
 
 export function setMuted(m: boolean) {
