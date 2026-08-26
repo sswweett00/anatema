@@ -6,17 +6,18 @@ import { runtimeQuality } from '../game/performance'
 import { softDotTexture } from '../game/textures'
 
 /*
- * PARÇACIKLAR — iki GPU draw-call.
- * Adaptive kalite doğrudan draw-range'e uygulanır; simülasyon yine tam çalışır,
- * ancak GPU'ya gönderilen parçacık sayısı frame pressure yükseldikçe azalır.
+ * GPU tarafında iki draw-call. Draw budget ve simulation frequency pressure'a göre
+ * ayrıştırılır; görüntü bütçesi korunurken CPU simülasyonu yoğun sahnede seyreltilir.
  */
 
 const MAX_P = 900
 const MAX_WISP = 160
-const _color = new THREE.Color()
 
 export default function Particles() {
   const pointsRef = useRef<THREE.Points>(null!)
+  const bigRef = useRef<THREE.Points>(null!)
+  const simulationAccumulator = useRef(0)
+  const sharedTexture = useMemo(() => softDotTexture(), [])
 
   const { geometry, positions, colors } = useMemo(() => {
     const geo = new THREE.BufferGeometry()
@@ -31,33 +32,34 @@ export default function Particles() {
     () =>
       new THREE.PointsMaterial({
         size: 0.55,
-        map: softDotTexture(),
+        map: sharedTexture,
         vertexColors: true,
         transparent: true,
         opacity: 0.95,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         sizeAttenuation: true,
+        alphaTest: 0.02,
       }),
-    []
+    [sharedTexture],
   )
 
   const bigMaterial = useMemo(
     () =>
       new THREE.PointsMaterial({
         size: 1.15,
-        map: softDotTexture(),
+        map: sharedTexture,
         vertexColors: true,
         transparent: true,
         opacity: 0.8,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         sizeAttenuation: true,
+        alphaTest: 0.02,
       }),
-    []
+    [sharedTexture],
   )
 
-  const bigRef = useRef<THREE.Points>(null!)
   const bigGeo = useMemo(() => {
     const geo = new THREE.BufferGeometry()
     const pos = new Float32Array(MAX_WISP * 3).fill(-9999)
@@ -73,7 +75,14 @@ export default function Particles() {
   }, [geometry, bigGeo])
 
   useFrame((_, rawDt) => {
-    const dt = Math.min(rawDt, 0.05)
+    simulationAccumulator.current += Math.min(rawDt, 0.05)
+    const targetHz = Math.max(30, Math.min(60, runtimeQuality.particleUpdateHz))
+    const step = 1 / targetHz
+    if (simulationAccumulator.current < step) return
+
+    const dt = Math.min(simulationAccumulator.current, 0.05)
+    simulationAccumulator.current = 0
+
     const list = particles.entities
     const particleBudget = Math.max(180, Math.floor(MAX_P * runtimeQuality.particleScale))
     const wispBudget = Math.max(40, Math.floor(MAX_WISP * Math.min(1, runtimeQuality.particleScale + 0.15)))
@@ -94,23 +103,30 @@ export default function Particles() {
       }
 
       pt.velocity.y -= 2.4 * dt
-      pt.velocity.multiplyScalar(1 - 1.6 * dt)
-      pt.position.addScaledVector(pt.velocity, dt)
+      const drag = Math.max(0, 1 - 1.6 * dt)
+      pt.velocity.x *= drag
+      pt.velocity.y *= drag
+      pt.velocity.z *= drag
+      pt.position.x += pt.velocity.x * dt
+      pt.position.y += pt.velocity.y * dt
+      pt.position.z += pt.velocity.z * dt
+
       if (pt.position.y < 0.04) {
         pt.position.y = 0.04
         pt.velocity.y *= -0.35
       }
 
       const f = Math.min(1, (pt.life / (pt.maxLife ?? 0.6)) * 1.6)
-      _color.setHex(pt.colorHex ?? 0xffffff).multiplyScalar(f * 1.7)
+      const color = new THREE.Color(pt.colorHex ?? 0xffffff)
+      color.multiplyScalar(f * 1.7)
 
       if (pt.wisp && wn < wispBudget) {
         wPos[wn * 3] = pt.position.x
         wPos[wn * 3 + 1] = pt.position.y
         wPos[wn * 3 + 2] = pt.position.z
-        wCol[wn * 3] = _color.r
-        wCol[wn * 3 + 1] = _color.g
-        wCol[wn * 3 + 2] = _color.b
+        wCol[wn * 3] = color.r
+        wCol[wn * 3 + 1] = color.g
+        wCol[wn * 3 + 2] = color.b
         wn++
         pt.velocity.y += 3.4 * dt
       }
@@ -119,9 +135,9 @@ export default function Particles() {
       positions[n * 3] = pt.position.x
       positions[n * 3 + 1] = pt.position.y
       positions[n * 3 + 2] = pt.position.z
-      colors[n * 3] = _color.r
-      colors[n * 3 + 1] = _color.g
-      colors[n * 3 + 2] = _color.b
+      colors[n * 3] = color.r
+      colors[n * 3 + 1] = color.g
+      colors[n * 3 + 2] = color.b
       n++
     }
 
