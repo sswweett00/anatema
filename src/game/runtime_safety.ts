@@ -21,24 +21,38 @@ function sanitizeEntity(entity: Entity) {
   if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) p.set(0, 0, 0)
   if (!Number.isFinite(v.x) || !Number.isFinite(v.y) || !Number.isFinite(v.z)) v.set(0, 0, 0)
 
-  entity.health = Math.max(0, finite(entity.health))
   entity.maxHealth = Math.max(1, finite(entity.maxHealth, 1))
-  entity.armor = Math.max(0, finite(entity.armor))
-  entity.poise = Math.max(0, Math.min(finite(entity.maxPoise, 1), finite(entity.poise)))
+  entity.health = Math.max(0, Math.min(entity.maxHealth, finite(entity.health)))
+  entity.armor = Math.max(0, Math.min(999, finite(entity.armor)))
+  entity.maxPoise = Math.max(1, Math.min(999, finite(entity.maxPoise, 1)))
+  entity.poise = Math.max(0, Math.min(entity.maxPoise, finite(entity.poise)))
   entity.speed = Math.max(0, Math.min(40, finite(entity.speed)))
   entity.radius = Math.max(0.02, Math.min(4, finite(entity.radius, 0.25)))
-  entity.slow = finite(entity.slow)
+  entity.slow = Math.max(0, Math.min(1, finite(entity.slow)))
   entity.hitFlash = Math.max(0, Math.min(1, finite(entity.hitFlash)))
   entity.attackCooldown = Math.max(0, finite(entity.attackCooldown))
   entity.invuln = Math.max(0, finite(entity.invuln))
-  entity.life = finite(entity.life)
+  entity.life = Math.max(0, finite(entity.life))
   entity.maxLife = Math.max(0, finite(entity.maxLife))
+
+  if (entity.health <= 0) entity.dead = true
 }
 
 function trimOverflow<T extends Entity>(collection: { entities: T[] }, max: number) {
   if (collection.entities.length <= max) return
+
   const overflow = collection.entities.length - max
-  for (let i = 0; i < overflow; i++) world.remove(collection.entities[i])
+  const candidates = collection.entities
+    .map((entity, index) => ({ entity, index }))
+    .sort((a, b) => {
+      const dead = Number(Boolean(b.entity.dead)) - Number(Boolean(a.entity.dead))
+      if (dead !== 0) return dead
+      return (b.entity.age ?? 0) - (a.entity.age ?? 0)
+    })
+
+  for (let i = 0; i < overflow; i++) {
+    world.remove(candidates[i].entity)
+  }
 }
 
 function tick() {
