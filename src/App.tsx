@@ -11,7 +11,7 @@ import { samplePerformance } from './game/performance_governor'
 import { validateCombatContent } from './game/content_validation'
 import { diagnosticsJson } from './game/diagnostics'
 import { resetRuntimeSuite, startRuntimeSuite } from './game/runtime_suite'
-import { resetGameServices, startGameServices, stopGameServices } from './game/game_services'
+import { resetGameServices } from './game/game_services'
 import { saveRunSnapshot } from './game/run_snapshot'
 import Environment from './components/Environment'
 import Player from './components/Player'
@@ -55,6 +55,7 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
   const cameraTarget = useRef(new THREE.Vector3(26, 26, 26))
   const cameraLookAt = useRef(new THREE.Vector3(0, 0, 0))
   const lastPlayer = useRef(new THREE.Vector3())
+  const smoothTarget = useRef(new THREE.Vector3())
 
   useEffect(() => {
     if (controllerQuality.current !== quality) {
@@ -80,15 +81,10 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
         const vz = Number.isFinite(player.velocity.z) ? player.velocity.z : 0
         const speed = Math.min(1, Math.hypot(vx, vz) / 8)
 
-        lastPlayer.current.lerp(new THREE.Vector3(px, 0, pz), 1 - Math.exp(-5 * safeDt))
-        const lookX = lastPlayer.current.x * 0.16
-        const lookZ = lastPlayer.current.z * 0.16
-        cameraLookAt.current.set(lookX, 0, lookZ)
-
-        const targetX = 26 + vx * 0.08
-        const targetY = 26 + 0.4 * speed
-        const targetZ = 26 + vz * 0.08
-        cameraTarget.current.set(targetX, targetY, targetZ)
+        smoothTarget.current.set(px, 0, pz)
+        lastPlayer.current.lerp(smoothTarget.current, 1 - Math.exp(-5 * safeDt))
+        cameraLookAt.current.set(lastPlayer.current.x * 0.16, 0, lastPlayer.current.z * 0.16)
+        cameraTarget.current.set(26 + vx * 0.08, 26 + 0.4 * speed, 26 + vz * 0.08)
         camera.position.lerp(cameraTarget.current, 1 - Math.exp(-4.5 * safeDt))
         camera.lookAt(cameraLookAt.current)
       }
@@ -160,13 +156,7 @@ export default function App() {
   useEffect(() => {
     const validation = validateCombatContent()
     if (!validation.valid) console.error('[ANATHEMA] combat content validation failed', validation.errors)
-    const stopRuntime = startRuntimeSuite()
-    const stopServices = startGameServices()
-    return () => {
-      stopServices?.()
-      stopGameServices()
-      stopRuntime?.()
-    }
+    return startRuntimeSuite()
   }, [])
 
   useEffect(() => onPhase((next) => {
