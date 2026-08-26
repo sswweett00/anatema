@@ -41,7 +41,6 @@ export default function Weapons() {
   const slashTimer = useRef(0.5)
   const arcRefs = useRef<(THREE.Group | null)[]>([])
   const arcs = useRef<Arc[]>(Array.from({ length: ARC_POOL }, () => ({ life: 0, max: 0.26 })))
-  const lastGridTime = useRef(-Infinity)
 
   const { geo, mat } = useMemo(
     () => ({
@@ -83,15 +82,11 @@ export default function Weapons() {
 
     if (playing && player) {
       const enemyList = enemies.entities
-      // One O(N) rebuild feeds all local weapon queries for this frame.
       weaponSpatial.build(enemyList)
-      lastGridTime.current = t
 
-      /* ---- en yakın ruh (kılıç da oklar da bunu kullanır) ---- */
-      let best: Entity | null = weaponSpatial.nearest(player.position, WEAPON_RANGE, enemyList) ?? null
-      let bestD2 = best ? best.position.distanceToSquared(player.position) : Infinity
+      const best: Entity | null = weaponSpatial.nearest(player.position, WEAPON_RANGE, enemyList) ?? null
+      const bestD2 = best ? best.position.distanceToSquared(player.position) : Infinity
 
-      /* ---- BÜYÜK KILIÇ: otomatik kavisli savuruş ---- */
       slashTimer.current -= dt
       if (slashTimer.current <= 0) {
         slashTimer.current = swordInterval()
@@ -160,7 +155,6 @@ export default function Weapons() {
         }
       }
 
-      /* ---- KÜL OKLARI: yalnızca yetenek seçildiyse ---- */
       fireTimer.current -= dt
       if (fireTimer.current <= 0) {
         fireTimer.current = arrowInterval()
@@ -188,7 +182,6 @@ export default function Weapons() {
         }
       }
 
-      /* ---- mermi hareketi + spatial çarpışma ---- */
       tmp.removeBullets.length = 0
       const bl = bullets.entities
 
