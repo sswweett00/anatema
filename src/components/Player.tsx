@@ -1,7 +1,13 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { mergeBufferGeometries } from 'three-stdlib'
+
+/* sürümden bağımsız birleştirme + güvenli fallback */
+function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const m = mergeBufferGeometries(parts, false)
+  return m ?? new THREE.CylinderGeometry(0.3, 0.28, 1.2, 14)
+}
 import { getPlayer, gameState, enemies, spawnBurst } from '../ecs/world'
 import { useInput } from '../hooks/useInput'
 import { sfx } from '../game/audio'
@@ -225,9 +231,7 @@ function buildBodyGeo(): THREE.BufferGeometry {
   banner.translate(0, 0.82, -0.245)
   parts.push(paint(banner, RUST_CLOTH))
 
-  const merged = mergeGeometries(parts, false)
-  if (!merged) throw new Error('knight body merge failed')
-  return merged
+  return merge(parts)
 }
 
 /* ---------------- bacak (kalça eksenli, birleşik) ---------------- */
@@ -250,9 +254,7 @@ function buildLegGeo(): THREE.BufferGeometry {
   foot.translate(0, -0.68, 0.05)
   parts.push(paint(foot, STEEL_LIGHT))
 
-  const merged = mergeGeometries(parts, false)
-  if (!merged) throw new Error('leg merge failed')
-  return merged
+  return merge(parts)
 }
 
 /* ---------------- büyük kılıç (birleşik) ---------------- */
@@ -312,9 +314,7 @@ function buildSwordGeo(): THREE.BufferGeometry {
     parts.push(paintHdr(rune, HDR_SLIT))
   }
 
-  const merged = mergeGeometries(parts, false)
-  if (!merged) throw new Error('sword merge failed')
-  return merged
+  return merge(parts)
 }
 
 /* ================================================================== */

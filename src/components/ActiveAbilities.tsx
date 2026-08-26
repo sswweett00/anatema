@@ -11,6 +11,8 @@ import {
 import { sfx } from '../game/audio'
 import {
   abilities,
+  hasSynergy,
+  rageActive,
   chainDamage,
   chainTargets,
   chainInterval,
@@ -24,6 +26,7 @@ import {
   vortexDamage,
   vortexRadius,
   vortexInterval,
+  novaRadius,
   rollDamage,
 } from '../game/abilities'
 
@@ -102,24 +105,48 @@ export default function ActiveAbilities() {
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
+      novaRing: new THREE.MeshBasicMaterial({
+        color: '#ff9a4d',
+        toneMapped: false,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+      auraRing: new THREE.MeshBasicMaterial({
+        color: '#ff3b1f',
+        toneMapped: false,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
     }),
     []
   )
 
+  /* kırıklı yıldırım: iki nokta arasına 3 sarsıntılı segment */
   const spawnChain = (from: THREE.Vector3, to: THREE.Vector3) => {
-    for (let i = 0; i < CHAIN_POOL; i++) {
-      if (chainLife[i] <= 0) {
-        chainLife[i] = 1
-        const m = chainRefs.current[i]
-        if (m) {
-          m.position.copy(from).lerp(to, 0.5)
-          m.position.y = 0.5
-          m.lookAt(to.x, 0.5, to.z)
-          m.scale.set(from.distanceTo(to), 1, 1)
-          m.visible = true
+    const segs = 3
+    let prev = _tmp.copy(from).setY(0.5)
+    for (let s = 1; s <= segs; s++) {
+      const next = s === segs ? _to.copy(to).setY(0.5) : new THREE.Vector3().lerpVectors(from, to, s / segs).setY(0.5 + (Math.random() - 0.5) * 0.5)
+      for (let i = 0; i < CHAIN_POOL; i++) {
+        if (chainLife[i] <= 0) {
+          chainLife[i] = 1
+          const m = chainRefs.current[i]
+          if (m) {
+            m.position.copy(prev).lerp(next, 0.5)
+            m.lookAt(next.x, m.position.y, next.z)
+            m.scale.set(prev.distanceTo(next), 1, 1)
+            m.visible = true
+          }
+          break
         }
-        return
       }
+      prev = next
     }
   }
 
@@ -325,6 +352,31 @@ export default function ActiveAbilities() {
       rings.current.vortex.position.y = 0.1
       rings.current.vortex.rotation.z += dt * 6
     }
+
+    /* ---- KÜL FIRTINASI halkası (flashNova ile tetiklenir) ---- */
+    if (rings.current.nova) {
+      const f = gameState.flashNova
+      rings.current.nova.visible = f > 0.02
+      const icy = hasSynergy('glacier')
+      mats.novaRing.color.set(icy ? '#9fdcff' : '#ff9a4d')
+      rings.current.nova.scale.setScalar(Math.max(0.01, (1 - f) * novaRadius() * 2 + 0.5))
+      mats.novaRing.opacity = f * 0.95
+      rings.current.nova.position.copy(player.position)
+      rings.current.nova.position.y = 0.12
+      rings.current.nova.rotation.z += dt * 4
+    }
+
+    /* ---- KAN HIRSI aurası ---- */
+    if (rings.current.aura) {
+      const on = rageActive(player)
+      const pulse = 0.3 + Math.sin(state.clock.elapsedTime * 7) * 0.12
+      rings.current.aura.visible = on
+      mats.auraRing.opacity = on ? pulse : 0
+      rings.current.aura.scale.setScalar(1.25 + Math.sin(state.clock.elapsedTime * 7) * 0.12)
+      rings.current.aura.position.copy(player.position)
+      rings.current.aura.position.y = 0.08
+      rings.current.aura.rotation.z += dt * 2.5
+    }
   })
 
   return (
@@ -376,6 +428,28 @@ export default function ActiveAbilities() {
         material={mats.vortexRing}
       >
         <ringGeometry args={[0.7, 1, 48]} />
+      </mesh>
+      {/* kül fırtınası halkası */}
+      <mesh
+        ref={(m) => {
+          rings.current.nova = m
+        }}
+        rotation-x={-Math.PI / 2}
+        visible={false}
+        material={mats.novaRing}
+      >
+        <ringGeometry args={[0.82, 1, 64]} />
+      </mesh>
+      {/* kan hırsı aurası */}
+      <mesh
+        ref={(m) => {
+          rings.current.aura = m
+        }}
+        rotation-x={-Math.PI / 2}
+        visible={false}
+        material={mats.auraRing}
+      >
+        <ringGeometry args={[0.55, 1, 48]} />
       </mesh>
     </group>
   )

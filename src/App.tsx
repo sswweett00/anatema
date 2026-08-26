@@ -21,8 +21,8 @@ import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './componen
 const Scene = memo(function Scene() {
   return (
     <>
-      <color attach="background" args={['#1a140e']} />
-      <fog attach="fog" args={['#1a140e', 34, 120]} />
+      <color attach="background" args={['#241a11']} />
+      <fog attach="fog" args={['#241a11', 38, 140]} />
       <OrthographicCamera makeDefault position={[26, 26, 26]} zoom={42} near={-300} far={500} />
       <Environment />
       <Player />
@@ -33,12 +33,12 @@ const Scene = memo(function Scene() {
       <EffectComposer multisampling={0} enableNormalPass={false}>
         <Bloom
           mipmapBlur
-          intensity={0.85}
-          luminanceThreshold={0.32}
-          luminanceSmoothing={0.2}
-          radius={0.72}
+          intensity={0.75}
+          luminanceThreshold={0.42}
+          luminanceSmoothing={0.25}
+          radius={0.62}
         />
-        <Vignette eskil={false} offset={0.24} darkness={0.82} />
+        <Vignette eskil={false} offset={0.32} darkness={0.52} />
       </EffectComposer>
     </>
   )
@@ -73,7 +73,7 @@ export default function App() {
     <div className="font-body text-bone bg-void relative h-dvh w-screen overflow-hidden">
       <Canvas
         shadows
-        dpr={[1, 1.75]}
+        dpr={[1, 1.5]}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
         <Scene />
