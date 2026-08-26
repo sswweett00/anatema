@@ -6,12 +6,7 @@ import { initAudio, sfx } from './game/audio'
 import { resetAbilities } from './game/abilities'
 import { loadProfile, recordRun, type Profile, type QualityPreset } from './game/profile'
 import { PerformanceController, type PerformanceSnapshot } from './game/performance'
-import { resetRunDirector, startRunDirector } from './game/mechanics'
-import { resetAdvancedRuntime, startAdvancedRuntime } from './game/advanced_runtime'
-import { resetMegaSystemsV2, startMegaSystemsV2 } from './game/mega_systems_v2'
-import { resetMegaCompletion, startMegaCompletion } from './game/mega_completion'
-import { resetCombatPolish, startCombatPolish } from './game/combat_polish'
-import { resetRuntimeSafety, startRuntimeSafety } from './game/runtime_safety'
+import { resetRuntimeSuite, startRuntimeSuite } from './game/runtime_suite'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
@@ -107,17 +102,7 @@ export default function App() {
   })
   const runRecorded = useRef(false)
 
-  useEffect(() => {
-    const stops = [
-      startRunDirector(),
-      startAdvancedRuntime(),
-      startMegaSystemsV2(),
-      startMegaCompletion(),
-      startCombatPolish(),
-      startRuntimeSafety(),
-    ]
-    return () => stops.forEach((stop) => stop())
-  }, [])
+  useEffect(() => startRuntimeSuite(), [])
 
   useEffect(() => onPhase((next) => {
     setPh(next)
@@ -161,12 +146,7 @@ export default function App() {
     } catch (err) {
       console.warn('Ses başlatılamadı (oyun sessiz devam eder):', err)
     }
-    resetRunDirector()
-    resetAdvancedRuntime()
-    resetMegaSystemsV2()
-    resetMegaCompletion()
-    resetCombatPolish()
-    resetRuntimeSafety()
+    resetRuntimeSuite()
     resetAbilities()
     resetRun()
     sfx.start()
