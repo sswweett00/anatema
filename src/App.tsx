@@ -9,6 +9,7 @@ import { PerformanceController, type PerformanceSnapshot } from './game/performa
 import { resetRunDirector, startRunDirector } from './game/mechanics'
 import { resetAdvancedRuntime, startAdvancedRuntime } from './game/advanced_runtime'
 import { resetMegaSystemsV2, startMegaSystemsV2 } from './game/mega_systems_v2'
+import { resetMegaCompletion, startMegaCompletion } from './game/mega_completion'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
@@ -104,7 +105,12 @@ export default function App() {
   const runRecorded = useRef(false)
 
   useEffect(() => {
-    const stops = [startRunDirector(), startAdvancedRuntime(), startMegaSystemsV2()]
+    const stops = [
+      startRunDirector(),
+      startAdvancedRuntime(),
+      startMegaSystemsV2(),
+      startMegaCompletion(),
+    ]
     return () => stops.forEach((stop) => stop())
   }, [])
 
@@ -153,6 +159,7 @@ export default function App() {
     resetRunDirector()
     resetAdvancedRuntime()
     resetMegaSystemsV2()
+    resetMegaCompletion()
     resetAbilities()
     resetRun()
     sfx.start()
