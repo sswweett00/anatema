@@ -1,16 +1,10 @@
 import * as THREE from 'three'
-import { enemies, gameState, getPlayer, world, particles, type Entity } from '../ecs/world'
+import { enemies, gameState, getPlayer, world, type Entity } from '../ecs/world'
 import { events } from './events'
 import { random } from './progression'
 
 type LootKind = 'xp' | 'heal' | 'relic' | 'shrine' | 'chest'
-
-type Loot = Entity & {
-  lootKind?: LootKind
-  rarity?: string
-  value?: number
-  magnetized?: boolean
-}
+type Loot = Entity & { lootKind?: LootKind; rarity?: string; value?: number }
 
 const MAX_LOOT = 96
 const loot: Loot[] = []
@@ -21,7 +15,7 @@ let last = 0
 
 function spawn(kind: LootKind, position: THREE.Vector3, value: number, rarity = 'common') {
   if (loot.length >= MAX_LOOT) return
-  const entity = {
+  const entity: Loot = {
     position: position.clone().setY(0.18),
     velocity: new THREE.Vector3((random() - 0.5) * 1.6, 2.5 + random() * 1.5, (random() - 0.5) * 1.6),
     health: 1,
@@ -31,7 +25,7 @@ function spawn(kind: LootKind, position: THREE.Vector3, value: number, rarity = 
     maxPoise: 1,
     speed: 0,
     radius: kind === 'relic' || kind === 'chest' ? 0.42 : 0.22,
-    isParticle: true,
+    isLoot: true,
     age: 0,
     life: 120,
     maxLife: 120,
@@ -39,7 +33,7 @@ function spawn(kind: LootKind, position: THREE.Vector3, value: number, rarity = 
     lootKind: kind,
     rarity,
     value,
-  } as Loot
+  }
   world.add(entity)
   loot.push(entity)
   events.emit('loot:drop', { kind, rarity, x: position.x, z: position.z })
@@ -55,8 +49,9 @@ function dropFromEnemy(enemy: Entity) {
 function sweepDeadEnemies() {
   for (const enemy of enemies.entities) {
     if (!enemy.dead || enemy.lastDmg === undefined) continue
-    if ((enemy as Entity & { lootDropped?: boolean }).lootDropped) continue
-    ;(enemy as Entity & { lootDropped?: boolean }).lootDropped = true
+    const tracked = enemy as Entity & { lootDropped?: boolean }
+    if (tracked.lootDropped) continue
+    tracked.lootDropped = true
     dropFromEnemy(enemy)
   }
 }
@@ -71,11 +66,9 @@ function collect(item: Loot, player: Entity) {
     player.health = Math.min(player.maxHealth, player.health + value)
     if (player.health > before) events.emit('player:heal', { amount: player.health - before })
   } else if (kind === 'relic') {
-    events.emit('relic:acquire', { relicId: `drop:${item.rarity}:${Math.floor(value)}` })
+    events.emit('relic:acquire', { relicId: `drop:${item.rarity ?? 'common'}` })
   } else if (kind === 'shrine') {
     events.emit('shrine:activate', { shrineId: `shrine-${Math.floor(item.position.x)}-${Math.floor(item.position.z)}`, reward: item.rarity ?? 'blessing' })
-  } else if (kind === 'chest') {
-    events.emit('loot:pickup', { kind: 'chest', rarity: item.rarity ?? 'rare' })
   }
   events.emit('loot:pickup', { kind, rarity: item.rarity ?? 'common' })
   world.remove(item)
