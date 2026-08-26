@@ -12,12 +12,11 @@ import {
 
 /**
  * İleri savaş katmanı.
- * Ana ECS döngüsünün üstünde hafif bir karar katmanı çalıştırır:
  * - Execute / execution chain
  * - Elemental resonance arketipleri
  * - Combo tier / overcharge
- * - Risk-reward kan hızı pencereleri
- * - Yakın tehdit baskısı ve otomatik stagger
+ * - Risk-reward savaş pencereleri
+ * - Yakın tehdit baskısı ve otomatik poise desteği
  *
  * Her şey mutatif tutulur; React state kullanılmaz.
  */
@@ -129,7 +128,6 @@ function applyResonance(resonance: Resonance, dt: number) {
         break
       case 'venom':
         e.health -= dps * 1.1 * dt
-        if (e.health < e.maxHealth * 0.2) e.speed *= 1 - Math.min(0.0015, dt * 0.02 * level)
         break
       case 'void': {
         const pull = Math.min(9, 2.5 + level * 0.3) * dt
@@ -180,7 +178,7 @@ function tick(dt: number) {
   if (resonance) applyResonance(resonance, dt)
 
   executeCooldown -= dt
-  const executeThreshold = 0.09 - Math.min(0.055, abilities.execute * 0.005)
+  const executeThreshold = 0.09
   if (executeCooldown <= 0 && gameState.combo >= 15) {
     executeCooldown = 0.32
     const executeBoost = 1 + Math.min(1.5, (gameState.combo - 15) * 0.015)
@@ -208,7 +206,6 @@ function tick(dt: number) {
     sfx.storm()
   }
 
-  // Yakın tehdit baskısı: kalabalık arttıkça kısa bir poise karşılığı kazanılır.
   if (abilities.bulwark > 0) {
     let nearby = 0
     for (let i = 0; i < enemies.entities.length && nearby < 20; i++) {
