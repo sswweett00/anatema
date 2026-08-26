@@ -13,6 +13,14 @@ const STEP = 1 / 60
 const MAX_FRAME = 0.1
 const MAX_STEPS = 6
 
+function reportListenerFailure(error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error)
+  events.emit('runtime:error', {
+    system: 'simulation-clock',
+    message: `simulation listener failed: ${message}`,
+  })
+}
+
 function loop(nowMs: number): void {
   if (!running) return
   const now = nowMs / 1000
@@ -24,7 +32,15 @@ function loop(nowMs: number): void {
   while (accumulator >= STEP && steps < MAX_STEPS) {
     simulationTime += STEP
     accumulator -= STEP
-    for (const listener of [...listeners]) listener(STEP, simulationTime)
+
+    for (const listener of [...listeners]) {
+      try {
+        listener(STEP, simulationTime)
+      } catch (error) {
+        reportListenerFailure(error)
+      }
+    }
+
     steps++
   }
 
