@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { enemies, getPlayer, type Entity } from '../ecs/world'
+import { SpatialHash } from './spatial'
 
 export interface RigidBodyConfig {
   playerMass: number
@@ -24,6 +25,7 @@ export const RIGID_BODY_CONFIG: RigidBodyConfig = {
 }
 
 const normal = new THREE.Vector3()
+const enemyHash = new SpatialHash(1.6)
 
 function finite(value: number, fallback = 0): number {
   return Number.isFinite(value) ? value : fallback
@@ -91,37 +93,27 @@ function solvePair(a: Entity, b: Entity, radiusScale: number): void {
 export function solvePlayerContacts(): void {
   const player = getPlayer()
   if (!player) return
-  const queryRadiusSq = 20.25
-  for (const enemy of enemies.entities) {
-    if (enemy.dead) continue
-    const dx = player.position.x - enemy.position.x
-    const dz = player.position.z - enemy.position.z
-    if (dx * dx + dz * dz <= queryRadiusSq) {
-      solvePair(player, enemy, RIGID_BODY_CONFIG.playerEnemyRadiusScale)
-    }
-  }
+
+  enemyHash.build(enemies.entities)
+  enemyHash.forEachNearbyIndex(player.position, 4.5, enemies.entities, (_, enemy) => {
+    solvePair(player, enemy, RIGID_BODY_CONFIG.playerEnemyRadiusScale)
+  })
 }
 
 export function solveEnemyContacts(): void {
   const list = enemies.entities
   if (list.length < 2) return
-  const radiusSq = 1.3225
-  const maxNeighbors = list.length > 900 ? 4 : 7
+
+  enemyHash.build(list)
+  const contactRadius = 1.55
 
   for (let i = 0; i < list.length; i++) {
     const a = list[i]
     if (a.dead) continue
-    let neighbors = 0
-    for (let j = Math.max(0, i - 18); j < Math.min(list.length, i + 19) && neighbors < maxNeighbors; j++) {
-      if (i === j) continue
-      const b = list[j]
-      if (b.dead) continue
-      const dx = a.position.x - b.position.x
-      const dz = a.position.z - b.position.z
-      if (dx * dx + dz * dz > radiusSq) continue
+    enemyHash.forEachNearbyIndex(a.position, contactRadius, list, (j, b) => {
+      if (j <= i || b.dead || b === a) return
       solvePair(a, b, RIGID_BODY_CONFIG.enemyEnemyRadiusScale)
-      neighbors++
-    }
+    })
   }
 }
 
