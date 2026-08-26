@@ -68,8 +68,8 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
           </div>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-ash md:text-[15px]">
             Pas, imparatorlukları yuttu; geriye goblinler, iskeletler ve balçıktan doğan
-            dehşetler kaldı. Son Kül Şövalyesi olarak halkanı savun — okların kendi nişan
-            alır, sürü ise her saniye büyür.
+            dehşetler kaldı. Son Kül Şövalyesi olarak halkanı savun — büyük kılıcın kendi
+            savrulur, okların kendi nişan alır, sürü ise her saniye büyür.
           </p>
         </div>
 
@@ -95,7 +95,7 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
               </div>
               <div className="flex items-center gap-2">
                 <Flame size={14} className="shrink-0 text-ember" />
-                <span className="ml-1 text-ash">kül okları en yakın canavara otomatik uçar</span>
+                <span className="ml-1 text-ash">kılıç ve oklar en yakın canavara otomatik vurur</span>
               </div>
             </div>
           </div>
@@ -104,6 +104,13 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
               ŞÖVALYENİN GÜÇLERİ
             </div>
             <ul className="mt-3 space-y-2.5 text-[13px] text-ash">
+              <li className="flex items-start gap-2">
+                <Swords size={14} className="mt-0.5 shrink-0 text-ember" />
+                <span>
+                  <b className="text-bone">Büyük Kılıç:</b> en yakın canavara kendi savrulur,
+                  çevresindekileri de biçer.
+                </span>
+              </li>
               <li className="flex items-start gap-2">
                 <Zap size={14} className="mt-0.5 shrink-0 text-ember" />
                 <span>
@@ -127,8 +134,8 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
               <li className="flex items-start gap-2">
                 <Swords size={14} className="mt-0.5 shrink-0 text-ember" />
                 <span>
-                  Her <b className="text-bone">30 kesim</b> kademe atlatır: daha çok ok, daha
-                  çok hasar, daha kalın zırh.
+                  Her <b className="text-bone">30 kesim</b> kademe atlatır: daha ağır savuruş,
+                  daha çok ok, daha kalın zırh.
                 </span>
               </li>
             </ul>

@@ -19,97 +19,240 @@ import { sfx } from '../game/audio'
 
 /*
  * SÜRÜ SİSTEMİ — 3 canavar türü, 3 instancedMesh (3 draw-call).
- *   0 GOBLIN  — kulaklı, burunlu, zıplayan yeşil cüce
- *   1 İSKELET — kafatası + kaburga + bacaklar, kemik beyazı
- *   2 BALÇIK  — ezilip büzülen yarı saydam yeşil kubbe
- * Sürü sayısı zamanla büyür (sürekli doluş + 18 sn'de bir dalga patlaması).
- * Tüm ölüm/skor/kademe işlemleri burada merkezî yapılır.
+ *   0 GOBLIN  — sivri kulaklı, kulplu sopalı, sarı gözlü yeşil cüce
+ *   1 İSKELET — kafatası, kavisli kaburgalar, paslı kılıç, köz göz çukurları
+ *   2 BALÇIK  — yarı saydam kubbe, içinde ışıklı çekirdek, squash & stretch
+ * Yüksek segmentli pürüzsüz geometriler + parça başına vertex renkleri.
+ * Sürü ÇOK AZ başlar, zamanla kabarır; 28 sn'de bir dalga patlaması gelir.
  */
 
-const WAVE_EVERY = 18
+const WAVE_EVERY = 28
 const WHITE = new THREE.Color('#ffffff')
+const FLASH = new THREE.Color(3, 3, 3) /* HDR beyaz — vuruş flaşı */
 
-/* ---------------- birleşik low-poly canavar geometrileri ---------------- */
+/* ---------------- yardımcılar ---------------- */
+
+/* Bir geometriyi tek renge boyar (vertex colors) + organik parlaklık titreşimi */
+function paint(geo: THREE.BufferGeometry, hex: number | string, bright = 1): THREE.BufferGeometry {
+  const c = new THREE.Color(hex).multiplyScalar(bright)
+  const count = geo.attributes.position.count
+  const colors = new Float32Array(count * 3)
+  for (let i = 0; i < count; i++) {
+    const v = 0.9 + (((i * 2654435761) >>> 0) % 100) / 100 * 0.2
+    colors[i * 3] = c.r * v
+    colors[i * 3 + 1] = c.g * v
+    colors[i * 3 + 2] = c.b * v
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  return geo
+}
+
+/* ---------------- GOBLIN ---------------- */
 
 function buildGoblinGeo(): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = []
-  const torso = new THREE.SphereGeometry(0.17, 8, 6)
-  torso.scale(1, 0.9, 0.85)
-  torso.translate(0, 0.26, 0)
-  parts.push(torso)
-  const head = new THREE.SphereGeometry(0.13, 8, 6)
-  head.translate(0, 0.48, 0)
-  parts.push(head)
-  const nose = new THREE.ConeGeometry(0.03, 0.11, 4)
+  const SKIN = 0x6f9e3f
+  const SKIN_DARK = 0x557c2e
+  const PALE = 0xa8c977
+
+  const legL = new THREE.CylinderGeometry(0.045, 0.038, 0.17, 10)
+  legL.translate(-0.08, 0.085, 0)
+  parts.push(paint(legL, SKIN_DARK))
+  const legR = new THREE.CylinderGeometry(0.045, 0.038, 0.17, 10)
+  legR.translate(0.08, 0.085, 0)
+  parts.push(paint(legR, SKIN_DARK))
+  const footL = new THREE.SphereGeometry(0.055, 10, 8)
+  footL.scale(1.15, 0.65, 1.5)
+  footL.translate(-0.08, 0.03, 0.03)
+  parts.push(paint(footL, SKIN_DARK))
+  const footR = new THREE.SphereGeometry(0.055, 10, 8)
+  footR.scale(1.15, 0.65, 1.5)
+  footR.translate(0.08, 0.03, 0.03)
+  parts.push(paint(footR, SKIN_DARK))
+
+  const torso = new THREE.SphereGeometry(0.17, 20, 14)
+  torso.scale(1, 0.92, 0.85)
+  torso.translate(0, 0.3, 0)
+  parts.push(paint(torso, SKIN))
+  const belly = new THREE.SphereGeometry(0.12, 16, 12)
+  belly.scale(0.95, 0.78, 0.62)
+  belly.translate(0, 0.26, 0.075)
+  parts.push(paint(belly, PALE))
+
+  const armL = new THREE.CylinderGeometry(0.032, 0.026, 0.2, 10)
+  armL.rotateZ(0.35)
+  armL.translate(-0.21, 0.28, 0)
+  parts.push(paint(armL, SKIN))
+  const handL = new THREE.SphereGeometry(0.035, 10, 8)
+  handL.translate(-0.25, 0.19, 0)
+  parts.push(paint(handL, SKIN_DARK))
+
+  const armR = new THREE.CylinderGeometry(0.032, 0.026, 0.2, 10)
+  armR.rotateZ(-0.5)
+  armR.translate(0.22, 0.3, 0.02)
+  parts.push(paint(armR, SKIN))
+  const handR = new THREE.SphereGeometry(0.035, 10, 8)
+  handR.translate(0.28, 0.22, 0.05)
+  parts.push(paint(handR, SKIN_DARK))
+
+  /* sopa */
+  const clubHandle = new THREE.CylinderGeometry(0.018, 0.024, 0.26, 8)
+  clubHandle.rotateZ(-0.9)
+  clubHandle.translate(0.34, 0.3, 0.05)
+  parts.push(paint(clubHandle, 0x5a3b22))
+  const clubHead = new THREE.SphereGeometry(0.068, 12, 10)
+  clubHead.scale(1, 1.3, 1)
+  clubHead.translate(0.44, 0.38, 0.05)
+  parts.push(paint(clubHead, 0x452c18))
+
+  const head = new THREE.SphereGeometry(0.135, 20, 14)
+  head.scale(1.02, 0.95, 1)
+  head.translate(0, 0.53, 0)
+  parts.push(paint(head, SKIN))
+  const nose = new THREE.ConeGeometry(0.034, 0.15, 10)
   nose.rotateX(Math.PI / 2)
-  nose.translate(0, 0.46, 0.17)
-  parts.push(nose)
-  const earL = new THREE.ConeGeometry(0.045, 0.19, 5)
-  earL.rotateZ(1.15)
-  earL.translate(-0.18, 0.53, 0)
-  parts.push(earL)
-  const earR = new THREE.ConeGeometry(0.045, 0.19, 5)
-  earR.rotateZ(-1.15)
-  earR.translate(0.18, 0.53, 0)
-  parts.push(earR)
-  const armL = new THREE.BoxGeometry(0.05, 0.2, 0.05)
-  armL.rotateZ(0.3)
-  armL.translate(-0.21, 0.25, 0)
-  parts.push(armL)
-  const armR = new THREE.BoxGeometry(0.05, 0.2, 0.05)
-  armR.rotateZ(-0.3)
-  armR.translate(0.21, 0.25, 0)
-  parts.push(armR)
-  const legL = new THREE.BoxGeometry(0.07, 0.13, 0.09)
-  legL.translate(-0.08, 0.065, 0)
-  parts.push(legL)
-  const legR = new THREE.BoxGeometry(0.07, 0.13, 0.09)
-  legR.translate(0.08, 0.065, 0)
-  parts.push(legR)
+  nose.translate(0, 0.5, 0.19)
+  parts.push(paint(nose, SKIN_DARK))
+  const earL = new THREE.ConeGeometry(0.048, 0.24, 10)
+  earL.rotateZ(1.18)
+  earL.translate(-0.2, 0.58, 0)
+  parts.push(paint(earL, SKIN))
+  const earR = new THREE.ConeGeometry(0.048, 0.24, 10)
+  earR.rotateZ(-1.18)
+  earR.translate(0.2, 0.58, 0)
+  parts.push(paint(earR, SKIN))
+
+  /* parlayan sarı gözler (HDR parlaklık) */
+  const eyeL = new THREE.SphereGeometry(0.028, 10, 8)
+  eyeL.translate(-0.055, 0.56, 0.115)
+  parts.push(paint(eyeL, new THREE.Color(2.4, 1.9, 0.35).getHex(), 1))
+  const eyeR = new THREE.SphereGeometry(0.028, 10, 8)
+  eyeR.translate(0.055, 0.56, 0.115)
+  parts.push(paint(eyeR, new THREE.Color(2.4, 1.9, 0.35).getHex(), 1))
+
   return mergeGeometries(parts)!
 }
+
+/* ---------------- İSKELET ---------------- */
 
 function buildSkeletonGeo(): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = []
-  const legL = new THREE.CylinderGeometry(0.028, 0.02, 0.26, 5)
-  legL.translate(-0.07, 0.13, 0)
-  parts.push(legL)
-  const legR = new THREE.CylinderGeometry(0.028, 0.02, 0.26, 5)
-  legR.translate(0.07, 0.13, 0)
-  parts.push(legR)
-  const pelvis = new THREE.BoxGeometry(0.2, 0.08, 0.11)
-  pelvis.translate(0, 0.3, 0)
-  parts.push(pelvis)
-  const spine = new THREE.CylinderGeometry(0.032, 0.045, 0.3, 5)
-  spine.translate(0, 0.5, 0)
-  parts.push(spine)
-  const ribW = [0.24, 0.21, 0.17]
+  const BONE = 0xd9cfb4
+  const BONE_DARK = 0xb3a78a
+  const RUST = 0x8a4a2a
+
+  const legL = new THREE.CylinderGeometry(0.03, 0.022, 0.3, 10)
+  legL.translate(-0.07, 0.15, 0)
+  parts.push(paint(legL, BONE_DARK))
+  const legR = new THREE.CylinderGeometry(0.03, 0.022, 0.3, 10)
+  legR.translate(0.07, 0.15, 0)
+  parts.push(paint(legR, BONE_DARK))
+  const footL = new THREE.BoxGeometry(0.06, 0.028, 0.13)
+  footL.translate(-0.07, 0.015, 0.03)
+  parts.push(paint(footL, BONE_DARK))
+  const footR = new THREE.BoxGeometry(0.06, 0.028, 0.13)
+  footR.translate(0.07, 0.015, 0.03)
+  parts.push(paint(footR, BONE_DARK))
+
+  const pelvis = new THREE.SphereGeometry(0.1, 14, 10)
+  pelvis.scale(1.15, 0.55, 0.8)
+  pelvis.translate(0, 0.33, 0)
+  parts.push(paint(pelvis, BONE))
+
+  const spine = new THREE.CylinderGeometry(0.034, 0.042, 0.32, 10)
+  spine.translate(0, 0.53, 0)
+  parts.push(paint(spine, BONE_DARK))
   for (let i = 0; i < 3; i++) {
-    const rib = new THREE.BoxGeometry(ribW[i], 0.028, 0.11)
-    rib.translate(0, 0.6 - i * 0.07, 0.01)
-    parts.push(rib)
+    const vert = new THREE.SphereGeometry(0.046, 10, 8)
+    vert.scale(1, 0.6, 1)
+    vert.translate(0, 0.42 + i * 0.1, 0)
+    parts.push(paint(vert, BONE))
   }
-  const armL = new THREE.CylinderGeometry(0.022, 0.017, 0.3, 4)
-  armL.rotateZ(0.2)
-  armL.translate(-0.17, 0.47, 0)
-  parts.push(armL)
-  const armR = new THREE.CylinderGeometry(0.022, 0.017, 0.3, 4)
-  armR.rotateZ(-0.2)
-  armR.translate(0.17, 0.47, 0)
-  parts.push(armR)
-  const skull = new THREE.SphereGeometry(0.15, 8, 6)
-  skull.translate(0, 0.78, 0)
-  parts.push(skull)
-  const jaw = new THREE.BoxGeometry(0.13, 0.05, 0.09)
-  jaw.translate(0, 0.66, 0.04)
-  parts.push(jaw)
+
+  /* kavisli kaburgalar (yarım torus) */
+  for (let i = 0; i < 3; i++) {
+    const rib = new THREE.TorusGeometry(0.13 - i * 0.022, 0.014, 8, 18, Math.PI)
+    rib.rotateX(Math.PI / 2)
+    rib.translate(0, 0.66 - i * 0.075, 0)
+    parts.push(paint(rib, BONE))
+  }
+
+  const armL = new THREE.CylinderGeometry(0.024, 0.018, 0.3, 10)
+  armL.rotateZ(0.3)
+  armL.translate(-0.19, 0.5, 0)
+  parts.push(paint(armL, BONE_DARK))
+  const handL = new THREE.SphereGeometry(0.03, 8, 8)
+  handL.translate(-0.24, 0.37, 0)
+  parts.push(paint(handL, BONE))
+  const armR = new THREE.CylinderGeometry(0.024, 0.018, 0.3, 10)
+  armR.rotateZ(-0.35)
+  armR.translate(0.19, 0.5, 0.02)
+  parts.push(paint(armR, BONE_DARK))
+  const handR = new THREE.SphereGeometry(0.03, 8, 8)
+  handR.translate(0.25, 0.38, 0.05)
+  parts.push(paint(handR, BONE))
+
+  /* paslı kılıç */
+  const blade = new THREE.BoxGeometry(0.035, 0.42, 0.012)
+  blade.rotateZ(-0.35)
+  blade.translate(0.34, 0.56, 0.05)
+  parts.push(paint(blade, RUST))
+  const guard = new THREE.BoxGeometry(0.11, 0.022, 0.03)
+  guard.rotateZ(-0.35)
+  guard.translate(0.28, 0.42, 0.05)
+  parts.push(paint(guard, 0x4a3220))
+
+  const skull = new THREE.SphereGeometry(0.155, 20, 16)
+  skull.scale(0.95, 1.02, 1)
+  skull.translate(0, 0.84, 0)
+  parts.push(paint(skull, BONE))
+  const jaw = new THREE.BoxGeometry(0.14, 0.055, 0.1)
+  jaw.translate(0, 0.71, 0.04)
+  parts.push(paint(jaw, BONE_DARK))
+
+  /* köz gibi göz çukurları */
+  const socketL = new THREE.SphereGeometry(0.034, 10, 8)
+  socketL.translate(-0.06, 0.86, 0.125)
+  parts.push(paint(socketL, new THREE.Color(2.6, 0.9, 0.15).getHex(), 1))
+  const socketR = new THREE.SphereGeometry(0.034, 10, 8)
+  socketR.translate(0.06, 0.86, 0.125)
+  parts.push(paint(socketR, new THREE.Color(2.6, 0.9, 0.15).getHex(), 1))
+
   return mergeGeometries(parts)!
 }
 
+/* ---------------- BALÇIK ---------------- */
+
 function buildSlimeGeo(): THREE.BufferGeometry {
-  const dome = new THREE.SphereGeometry(0.34, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2)
-  dome.scale(1, 0.68, 1) /* yükseklik ~0.23 — squash animasyonu buna göre */
-  return dome
+  const parts: THREE.BufferGeometry[] = []
+
+  const dome = new THREE.SphereGeometry(0.34, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2)
+  dome.scale(1, 0.72, 1)
+  parts.push(paint(dome, 0x3fbf82))
+
+  /* dip halkası */
+  const rim = new THREE.TorusGeometry(0.325, 0.032, 10, 30)
+  rim.rotateX(Math.PI / 2)
+  rim.translate(0, 0.025, 0)
+  parts.push(paint(rim, 0x2c8f60))
+
+  /* içindeki ışıklı çekirdek */
+  const core = new THREE.SphereGeometry(0.15, 20, 14)
+  core.scale(1, 0.85, 1)
+  core.translate(0, 0.13, 0)
+  parts.push(paint(core, new THREE.Color(0.9, 2.2, 1.5).getHex(), 1))
+
+  /* gözler */
+  const eyeL = new THREE.SphereGeometry(0.045, 12, 10)
+  eyeL.scale(1, 1.25, 0.7)
+  eyeL.translate(-0.1, 0.2, 0.245)
+  parts.push(paint(eyeL, 0x0e2e20))
+  const eyeR = new THREE.SphereGeometry(0.045, 12, 10)
+  eyeR.scale(1, 1.25, 0.7)
+  eyeR.translate(0.1, 0.2, 0.245)
+  parts.push(paint(eyeR, 0x0e2e20))
+
+  return mergeGeometries(parts)!
 }
 
 /* ---------------- bileşen ---------------- */
@@ -123,25 +266,25 @@ export default function EnemySwarm() {
       mats: [
         new THREE.MeshStandardMaterial({
           color: '#ffffff',
-          roughness: 0.85,
-          metalness: 0.05,
-          flatShading: true,
+          vertexColors: true,
+          roughness: 0.8,
+          metalness: 0.04,
         }),
         new THREE.MeshStandardMaterial({
           color: '#ffffff',
-          roughness: 0.75,
-          metalness: 0.05,
-          flatShading: true,
-        }),
-        new THREE.MeshStandardMaterial({
-          color: '#ffffff',
-          roughness: 0.28,
+          vertexColors: true,
+          roughness: 0.62,
           metalness: 0.08,
-          flatShading: true,
+        }),
+        new THREE.MeshStandardMaterial({
+          color: '#ffffff',
+          vertexColors: true,
+          roughness: 0.18,
+          metalness: 0.05,
           transparent: true,
-          opacity: 0.82,
+          opacity: 0.8,
           emissive: new THREE.Color('#0e3b28'),
-          emissiveIntensity: 0.55,
+          emissiveIntensity: 0.4,
         }),
       ],
     }),
@@ -152,7 +295,6 @@ export default function EnemySwarm() {
     () => ({
       dummy: new THREE.Object3D(),
       color: new THREE.Color(),
-      base: new THREE.Color(),
       dir: new THREE.Vector3(),
       side: new THREE.Vector3(),
       desired: new THREE.Vector3(),
@@ -179,11 +321,11 @@ export default function EnemySwarm() {
     if (playing && player) {
       gameState.time += dt
 
-      /* ---- spawn direktörü: nüfus zamanla BÜYÜR ---- */
-      const target = Math.min(MAX_ENEMIES, 120 + gameState.time * 8)
+      /* ---- spawn direktörü: ÇOK AZ başlar, zamanla kabarır ---- */
+      const target = Math.min(MAX_ENEMIES, 10 + gameState.time * 2.8)
       const deficit = target - enemies.entities.length
       if (deficit > 0) {
-        const budget = Math.min(deficit, 10)
+        const budget = Math.min(deficit, deficit > 400 ? 16 : 5)
         for (let i = 0; i < budget; i++) spawnEnemy(player.position)
       }
 
@@ -192,7 +334,7 @@ export default function EnemySwarm() {
       if (gameState.waveTimer <= 0) {
         gameState.waveTimer = WAVE_EVERY
         gameState.wave++
-        const burst = Math.min(110, MAX_ENEMIES - enemies.entities.length)
+        const burst = Math.min(30 + gameState.wave * 13, MAX_ENEMIES - enemies.entities.length)
         for (let i = 0; i < burst; i++) spawnEnemy(player.position)
         sfx.wave()
         announce(`SÜRÜ BÜYÜDÜ — DALGA ${gameState.wave}`)
@@ -316,11 +458,11 @@ export default function EnemySwarm() {
       if (kind === 0) {
         /* goblin: sekerek koşar, öne eğilir */
         y = Math.abs(Math.sin(t * 9 + ph)) * 0.16 * s
-        tmp.dummy.rotation.x = 0.2
+        tmp.dummy.rotation.x = 0.18
       } else if (kind === 1) {
         /* iskelet: kemik tıkırtısıyla hafif salınım */
         y = Math.abs(Math.sin(t * 6 + ph)) * 0.06 * s
-        tmp.dummy.rotation.x = 0.06
+        tmp.dummy.rotation.x = 0.05
       } else {
         /* balçık: squash & stretch + hoplama */
         const f = Math.abs(Math.sin(t * 4.5 + ph))
@@ -345,8 +487,8 @@ export default function EnemySwarm() {
       tmp.dummy.updateMatrix()
       mesh.setMatrixAt(idx, tmp.dummy.matrix)
 
-      tmp.base.setHex(ENEMY_KINDS[kind].color)
-      tmp.color.copy(tmp.base).lerp(WHITE, flash * 0.85)
+      /* vertex renkleri paleti taşır; instanceColor flaş + ton için çarpan */
+      tmp.color.copy(WHITE).lerp(new THREE.Color(3, 3, 3), flash * 0.6)
       mesh.setColorAt(idx, tmp.color)
       counts[kind]++
     }

@@ -90,6 +90,11 @@ function gate(key: string, ms: number): boolean {
 }
 
 export const sfx = {
+  slash() {
+    if (!gate('slash', 130)) return
+    tone({ freq: 1050 + Math.random() * 200, end: 220, dur: 0.13, type: 'sawtooth', vol: 0.06 })
+    noise(0.09, 0.05, 2400)
+  },
   shoot() {
     if (!gate('shoot', 75)) return
     tone({ freq: 760 + Math.random() * 260, end: 190, dur: 0.09, type: 'square', vol: 0.035 })

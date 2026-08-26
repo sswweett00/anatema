@@ -20,6 +20,7 @@ export default function Player() {
   const body = useRef<THREE.Group>(null!)
   const orbit = useRef<THREE.Group>(null!)
   const cloak = useRef<THREE.Mesh>(null!)
+  const sword = useRef<THREE.Group>(null!)
   const keys = useInput()
   const { camera, size } = useThree()
 
@@ -166,12 +167,30 @@ export default function Player() {
       (p.invuln ?? 0) > 0 && Math.floor(t * 22) % 2 === 0
     )
 
-    if (speedAmt > 0.4) {
-      const targetYaw = Math.atan2(p.velocity.x, p.velocity.z)
+    /* savuruş sırasında hedefe, yoksa hareket yönüne bak */
+    gameState.slashAnim = Math.max(0, gameState.slashAnim - dt * 3.2)
+    const slashing = gameState.slashAnim > 0
+    let yawTarget: number | null = null
+    if (slashing) yawTarget = gameState.slashYaw
+    else if (speedAmt > 0.4) yawTarget = Math.atan2(p.velocity.x, p.velocity.z)
+    if (yawTarget !== null) {
       const cur = body.current.rotation.y
-      const d = Math.atan2(Math.sin(targetYaw - cur), Math.cos(targetYaw - cur))
-      body.current.rotation.y = cur + d * Math.min(1, 12 * dt)
+      const d = Math.atan2(Math.sin(yawTarget - cur), Math.cos(yawTarget - cur))
+      body.current.rotation.y = cur + d * Math.min(1, (slashing ? 20 : 12) * dt)
     }
+
+    /* büyük kılıç savuruş animasyonu */
+    if (slashing) {
+      const pr = 1 - gameState.slashAnim
+      const ease = 1 - Math.pow(1 - pr, 3)
+      sword.current.rotation.z = -1.35 + ease * 2.3
+      sword.current.rotation.x = 0.25 - ease * 0.45
+    } else {
+      const cur = sword.current.rotation.z
+      sword.current.rotation.z = cur + (-0.6 - cur) * Math.min(1, 8 * dt)
+      sword.current.rotation.x = 0.25 + Math.sin(t * 2) * 0.04
+    }
+
     body.current.position.y =
       Math.sin(t * 11) * 0.05 * Math.min(1, speedAmt / 4)
     cloak.current.rotation.x =
@@ -268,6 +287,43 @@ export default function Player() {
           distance={8}
           decay={1.8}
         />
+        {/* BÜYÜK KILIÇ — Kül Şövalyesi'nin asıl silahı */}
+        <group ref={sword} position={[0.44, 0.72, 0.08]} rotation={[-0.35, 0, -0.6]}>
+          {/* kabza */}
+          <mesh castShadow position={[0, -0.02, 0]}>
+            <cylinderGeometry args={[0.042, 0.05, 0.34, 10]} />
+            <meshStandardMaterial color="#3a2417" roughness={0.9} />
+          </mesh>
+          <mesh position={[0, -0.22, 0]}>
+            <sphereGeometry args={[0.06, 12, 10]} />
+            <meshStandardMaterial color="#8a6a3a" metalness={0.85} roughness={0.3} />
+          </mesh>
+          {/* siperlik */}
+          <mesh castShadow position={[0, 0.18, 0]}>
+            <boxGeometry args={[0.36, 0.07, 0.13]} />
+            <meshStandardMaterial color="#8a6a3a" metalness={0.85} roughness={0.32} />
+          </mesh>
+          {/* namlu */}
+          <mesh castShadow position={[0, 0.92, 0]}>
+            <boxGeometry args={[0.17, 1.32, 0.05]} />
+            <meshStandardMaterial color="#b8bcc2" metalness={0.92} roughness={0.22} />
+          </mesh>
+          {/* oluk */}
+          <mesh position={[0, 0.9, 0]}>
+            <boxGeometry args={[0.05, 1.15, 0.062]} />
+            <meshStandardMaterial color="#6d737b" metalness={0.9} roughness={0.3} />
+          </mesh>
+          {/* sivri uç */}
+          <mesh castShadow position={[0, 1.7, 0]} rotation={[0, Math.PI / 4, 0]}>
+            <coneGeometry args={[0.121, 0.3, 4]} />
+            <meshStandardMaterial color="#b8bcc2" metalness={0.92} roughness={0.22} />
+          </mesh>
+          {/* kor ağız */}
+          <mesh position={[0.088, 0.92, 0]}>
+            <boxGeometry args={[0.018, 1.28, 0.052]} />
+            <meshBasicMaterial color="#ff8a3d" toneMapped={false} />
+          </mesh>
+        </group>
         {/* yörünge korları */}
         <group ref={orbit} position={[0, 0.78, 0]}>
           {cinders.map((pos, i) => (

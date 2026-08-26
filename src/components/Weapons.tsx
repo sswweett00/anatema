@@ -21,12 +21,19 @@ import { sfx } from '../game/audio'
 
 const MAX_BULLETS = 320
 const WEAPON_RANGE = 22
+const SLASH_RANGE = 3.4 /* büyük kılıç erişimi */
+const ARC_POOL = 10
 
 const _origin = new THREE.Vector3()
+
+type Arc = { life: number; max: number }
 
 export default function Weapons() {
   const meshRef = useRef<THREE.InstancedMesh>(null!)
   const fireTimer = useRef(0)
+  const slashTimer = useRef(0.5)
+  const arcRefs = useRef<(THREE.Group | null)[]>([])
+  const arcs = useRef<Arc[]>(Array.from({ length: ARC_POOL }, () => ({ life: 0, max: 0.26 })))
 
   const { geo, mat } = useMemo(
     () => ({
@@ -70,13 +77,10 @@ export default function Weapons() {
       const tier = gameState.tier
       const interval = Math.max(0.14, 0.32 - tier * 0.022)
 
-      /* ---- otomatik salvo ---- */
-      fireTimer.current -= dt
-      if (fireTimer.current <= 0) {
-        fireTimer.current = interval
-
-        let best: Entity | null = null
-        let bestD2 = WEAPON_RANGE * WEAPON_RANGE
+      /* ---- en yakın ruh (kılıç da oklar da bunu kullanır) ---- */
+      let best: Entity | null = null
+      let bestD2 = WEAPON_RANGE * WEAPON_RANGE
+      {
         const el = enemies.entities
         for (let i = 0; i < el.length; i++) {
           const e = el[i]
@@ -88,6 +92,76 @@ export default function Weapons() {
             best = e
           }
         }
+      }
+
+      /* ---- BÜYÜK KILIÇ: otomatik kavisli savuruş ---- */
+      slashTimer.current -= dt
+      if (slashTimer.current <= 0) {
+        slashTimer.current = Math.max(0.4, 0.58 - tier * 0.02)
+        if (best && bestD2 < SLASH_RANGE * SLASH_RANGE) {
+          const dx = best.position.x - player.position.x
+          const dz = best.position.z - player.position.z
+          const dLen = Math.sqrt(dx * dx + dz * dz) || 1
+          player.facingX = dx / dLen
+          player.facingZ = dz / dLen
+          const yaw = Math.atan2(dx, dz)
+          gameState.slashYaw = yaw
+          gameState.slashAnim = 1
+
+          const slashDmg = 26 + tier * 10 /* ağır hasar */
+          const R2 = SLASH_RANGE * SLASH_RANGE
+          const el = enemies.entities
+          for (let i = 0; i < el.length; i++) {
+            const e = el[i]
+            if (e.dead) continue
+            const ex = e.position.x - player.position.x
+            const ez = e.position.z - player.position.z
+            const ed2 = ex * ex + ez * ez
+            if (ed2 < R2) {
+              e.health -= Math.max(2, slashDmg - e.armor)
+              e.hitFlash = 1
+              const ed = Math.sqrt(ed2) || 1
+              e.velocity.x += (ex / ed) * 11
+              e.velocity.z += (ez / ed) * 11
+              if (e.health <= 0) e.dead = true
+            }
+          }
+
+          /* kavis efekti */
+          for (let i = 0; i < ARC_POOL; i++) {
+            if (arcs.current[i].life <= 0) {
+              arcs.current[i].life = arcs.current[i].max
+              const g = arcRefs.current[i]
+              if (g) {
+                g.visible = true
+                g.position.set(player.position.x, 0.5, player.position.z)
+                g.rotation.y = yaw
+                g.scale.setScalar(0.4)
+              }
+              break
+            }
+          }
+
+          gameState.shake = Math.min(1, gameState.shake + 0.2)
+          sfx.slash()
+          spawnBurst(
+            _origin.set(
+              player.position.x + (dx / dLen) * 1.6,
+              0.4,
+              player.position.z + (dz / dLen) * 1.6
+            ),
+            0xffa14d,
+            8,
+            3.5,
+            0.4
+          )
+        }
+      }
+
+      /* ---- KÜL OKLARI: otomatik salvo ---- */
+      fireTimer.current -= dt
+      if (fireTimer.current <= 0) {
+        fireTimer.current = interval
 
         if (best && bullets.entities.length < MAX_BULLETS) {
           const shots = Math.min(tier, 7)
@@ -170,15 +244,55 @@ export default function Weapons() {
     }
     mesh.count = n
     mesh.instanceMatrix.needsUpdate = true
+
+    /* ---- savuruş kavisleri ---- */
+    for (let i = 0; i < ARC_POOL; i++) {
+      const a = arcs.current[i]
+      const g = arcRefs.current[i]
+      if (!g) continue
+      if (a.life > 0) {
+        a.life -= dt
+        const p = 1 - Math.max(0, a.life) / a.max
+        g.scale.setScalar(0.4 + p * 0.85)
+        const m = (g.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial
+        m.opacity = Math.pow(1 - p, 1.4) * 0.85
+        if (a.life <= 0) g.visible = false
+      }
+    }
   })
 
   return (
-    <instancedMesh
-      ref={(m) => {
-        meshRef.current = m!
-      }}
-      args={[geo, mat, MAX_BULLETS]}
-      frustumCulled={false}
-    />
+    <>
+      <instancedMesh
+        ref={(m) => {
+          meshRef.current = m!
+        }}
+        args={[geo, mat, MAX_BULLETS]}
+        frustumCulled={false}
+      />
+      {/* savuruş kavisleri */}
+      {Array.from({ length: ARC_POOL }, (_, i) => (
+        <group
+          key={i}
+          visible={false}
+          ref={(el) => {
+            arcRefs.current[i] = el
+          }}
+        >
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[1.05, 3.15, 48, 1, -Math.PI / 2 - 1.0, 2.0]} />
+            <meshBasicMaterial
+              color="#ffb15c"
+              transparent
+              opacity={0}
+              side={THREE.DoubleSide}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </mesh>
+        </group>
+      ))}
+    </>
   )
 }

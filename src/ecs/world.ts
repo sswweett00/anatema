@@ -70,8 +70,10 @@ export const gameState = {
   damageFlash: 0,
   tierFlash: 0,
   wave: 0,
-  waveTimer: 18,
+  waveTimer: 30,
   flashNova: 0,
+  slashAnim: 0,
+  slashYaw: 0,
   announceText: '',
   announceUntil: 0,
 }
@@ -282,8 +284,10 @@ export function resetRun() {
   gameState.damageFlash = 0
   gameState.tierFlash = 0
   gameState.wave = 0
-  gameState.waveTimer = 18
+  gameState.waveTimer = 30
   gameState.flashNova = 0
+  gameState.slashAnim = 0
+  gameState.slashYaw = 0
   gameState.announceText = 'OYUN BAŞLADI — SÜRÜ GELİYOR'
   gameState.announceUntil = 2.6
 }

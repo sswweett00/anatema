@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Skull, Ghost, Flame, Shield, Volume2, VolumeX, HeartPulse, Zap } from 'lucide-react'
+import { Skull, Ghost, Flame, Shield, Volume2, VolumeX, HeartPulse, Zap, Swords } from 'lucide-react'
 import { clsx } from 'clsx'
 import { enemies, getPlayer, gameState } from '../ecs/world'
 import { isMuted, setMuted } from '../game/audio'
@@ -59,7 +59,7 @@ export default function HUD() {
       if (timerText.current) timerText.current.textContent = fmtTime(gameState.time)
       if (killsText.current) killsText.current.textContent = String(gameState.kills)
       if (aliveText.current) aliveText.current.textContent = String(enemies.entities.length)
-      if (dmgText.current) dmgText.current.textContent = String(8 + gameState.tier * 3)
+      if (dmgText.current) dmgText.current.textContent = String(26 + gameState.tier * 10)
 
       for (let i = 0; i < PIP_COUNT; i++) {
         const el = pipRefs.current[i]
@@ -233,15 +233,18 @@ export default function HUD() {
           <div className="plate w-[240px] px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-[10px] font-bold tracking-[0.26em] text-ash">
-                <Flame size={12} className="text-ember" />
-                KÜL OKLARI
+                <Swords size={12} className="text-ember" />
+                BÜYÜK KILIÇ
               </div>
               <div className="text-[9px] tracking-[0.18em] text-ash">
                 HASAR{' '}
                 <span ref={dmgText} className="font-display text-sm font-bold text-ember">
-                  11
+                  36
                 </span>
               </div>
+            </div>
+            <div className="mt-1 text-[8px] tracking-[0.22em] text-ash/70">
+              + KÜL OKLARI · İKİSİ DE KENDİ NİŞAN ALIR
             </div>
             <div className="mt-2.5 flex items-center justify-between px-1">
               {Array.from({ length: PIP_COUNT }, (_, i) => (
@@ -334,8 +337,8 @@ export default function HUD() {
         </div>
 
         <div className="plate hidden items-center gap-2 px-4 py-2.5 text-[10px] tracking-[0.2em] text-ash/80 lg:flex">
-          <Flame size={11} className="text-rust" />
-          OKLAR KENDİ NİŞAN ALIR
+          <Swords size={11} className="text-rust" />
+          KILIÇ YAKINA, OKLAR UZAĞA VURUR
         </div>
       </div>
 
