@@ -1,5 +1,5 @@
 import { abilities } from './abilities'
-import { emitAbilityActivationSnapshot, validateAbilityActivation } from './ability_activation'
+import { emitAbilityActivationSnapshot, resetAbilityActivationSnapshot, validateAbilityActivation } from './ability_activation'
 import { onSimulationTick } from './simulation_clock'
 import { gameState } from '../ecs/world'
 
@@ -12,7 +12,7 @@ function tick(dt: number): void {
   if (gameState.phase !== 'playing') return
   accumulator += dt
   if (accumulator < SNAPSHOT_INTERVAL) return
-  accumulator = 0
+  accumulator -= SNAPSHOT_INTERVAL
   emitAbilityActivationSnapshot()
 }
 
@@ -34,8 +34,15 @@ export function stopAbilityActivationRuntime(): void {
 }
 
 export function resetAbilityActivationRuntime(): void {
-  stopAbilityActivationRuntime()
+  const wasRunning = running
+  if (wasRunning) stopAbilityActivationRuntime()
+
+  resetAbilityActivationSnapshot()
+
   for (const id of Object.keys(abilities) as Array<keyof typeof abilities>) {
-    if (!Number.isFinite(abilities[id]) || abilities[id] < 0) abilities[id] = 0
+    const level = abilities[id]
+    abilities[id] = Number.isFinite(level) && level > 0 ? Math.min(999, level) : 0
   }
+
+  if (wasRunning) startAbilityActivationRuntime()
 }
