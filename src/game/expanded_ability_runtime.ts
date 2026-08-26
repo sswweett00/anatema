@@ -336,14 +336,6 @@ function tickPassive(dt: number, player: Entity) {
       }
     }
   }
-  if (abilities.fortunesfavor > 0 && gameState.kills > 0) {
-    timers.fortunesfavor = (timers.fortunesfavor ?? 0) - dt
-    if (timers.fortunesfavor <= 0) {
-      timers.fortunesfavor = Math.max(5, 18 - abilities.fortunesfavor * 0.6)
-      gameState.announceText = 'TALİH ELİNİ UZATTI'
-      gameState.announceUntil = gameState.time + 1.8
-    }
-  }
   if (abilities.aegis > 0 && player.health < player.maxHealth * (0.25 + abilities.aegis * 0.01)) {
     timers.aegis = (timers.aegis ?? 0) - dt
     if (timers.aegis <= 0) {
@@ -364,10 +356,6 @@ function tickPassive(dt: number, player: Entity) {
       for (const e of enemies.entities) if (!e.dead && (e.age ?? 0) > 7) e.lastDmg = Math.max(e.lastDmg ?? 0, 1)
     }
   }
-  if (abilities.soulharvest > 0 && gameState.kills > 0 && gameState.kills % 25 === 0) {
-    const key = 'soulharvestClaim'
-    if (!timers[key]) { timers[key] = 1; gameState.shake = Math.min(1, gameState.shake + 0.28); spawnBurst(player.position, 0xd9b8ff, 24, 4.8, 0.7) }
-  } else if (gameState.kills % 25 !== 0) timers.soulharvestClaim = 0
 }
 
 function tick(dt: number) {
@@ -392,8 +380,10 @@ export function stopExpandedAbilityRuntime() {
 }
 
 export function resetExpandedAbilityRuntime() {
+  const wasRunning = running
   stopExpandedAbilityRuntime()
   for (const key of Object.keys(timers)) delete timers[key]
   minePositions.length = 0
   mineLife.length = 0
+  if (wasRunning) startExpandedAbilityRuntime()
 }
