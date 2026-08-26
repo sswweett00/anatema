@@ -19,10 +19,16 @@ import {
   Eye,
   Magnet,
   Angry,
+  Axe,
+  Footprints,
+  Bug,
+  Droplet,
+  Mountain,
+  Moon,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { enemies, getPlayer, gameState } from '../ecs/world'
-import { abilities, ABILITIES, MAX_LVL, swordDamage, type AbilityId } from '../game/abilities'
+import { abilities, ABILITIES, displayName, swordDamage, type AbilityId } from '../game/abilities'
 import { isMuted, setMuted } from '../game/audio'
 
 /*
@@ -46,12 +52,20 @@ const ABILITY_ICONS: Record<AbilityId, typeof Flame> = {
   storm: CloudLightning,
   frost: Snowflake,
   vortex: Tornado,
+  spikes: Axe,
+  pyre: Footprints,
+  phantom: Ghost,
+  venom: Bug,
   heart: HeartPulse,
   swift: Wind,
   armor: Shield,
   crit: Eye,
   magnet: Magnet,
   rage: Angry,
+  vamp: Droplet,
+  stone: Mountain,
+  ghoststep: Moon,
+  ferocity: Skull,
   mend: Heart,
 }
 
@@ -144,13 +158,19 @@ export default function HUD() {
       }
       comboPulse.current = Math.max(0, comboPulse.current - 0.07)
 
-      /* yetenek rozetleri */
+      /* yetenek rozetleri (sinerji etkinse adı da değişir) */
       for (let i = 0; i < ABILITIES.length; i++) {
         const id = ABILITIES[i].id
         const lvl = abilities[id]
         const slot = abilitySlotRefs.current[i]
         const lvlEl = abilityLvlRefs.current[i]
-        if (slot) slot.style.opacity = lvl > 0 ? '1' : '0.28'
+        if (slot) {
+          slot.style.opacity = lvl > 0 ? '1' : '0.28'
+          const dn = displayName(id)
+          slot.title = dn.syn
+            ? `${dn.label} · SV ${dn.synLvl} (${dn.syn.desc})`
+            : `${dn.label}${lvl > 0 ? ` · SV ${lvl}` : ''}`
+        }
         if (lvlEl) lvlEl.textContent = lvl > 0 ? String(lvl) : '·'
       }
 
@@ -359,7 +379,7 @@ export default function HUD() {
               </div>
             </div>
             {/* yetenek rozetleri */}
-            <div className="mt-2.5 flex items-center justify-between">
+            <div className="mt-2.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
               {ABILITIES.map((a, i) => {
                 const Icon = ABILITY_ICONS[a.id]
                 return (

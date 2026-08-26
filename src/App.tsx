@@ -12,6 +12,7 @@ import ActiveAbilities from './components/ActiveAbilities'
 import Glows from './components/Glows'
 import Particles from './components/Particles'
 import HUD from './components/HUD'
+import DamageNumbers from './components/DamageNumbers'
 import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './components/Screens'
 
 /*
@@ -120,6 +121,7 @@ export default function App() {
         <div className="vignette pointer-events-none absolute inset-0 z-10" />
 
         {(phase === 'playing' || phase === 'paused' || phase === 'levelup') && <HUD />}
+        {phase === 'playing' && <DamageNumbers />}
         {phase === 'menu' && <StartScreen onStart={start} />}
         {phase === 'dead' && <DeathScreen onRestart={start} />}
         {phase === 'paused' && <PauseScreen />}

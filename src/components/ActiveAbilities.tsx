@@ -692,6 +692,19 @@ export default function ActiveAbilities() {
           <planeGeometry args={[1, 1]} />
         </mesh>
       </group>
+
+      {/* kül fırtınası halkası */}
+      <group
+        visible={false}
+        ref={(el) => { rings.current.nova = el }}
+      >
+        <mesh rotation-x={-Math.PI / 2} material={mats.novaRing}>
+          <planeGeometry args={[1, 1]} />
+        </mesh>
+        <mesh rotation-x={-Math.PI / 2} position={[0, 0.01, 0]} material={mats.novaFill} scale={0.75}>
+          <planeGeometry args={[1, 1]} />
+        </mesh>
+      </group>
     </group>
   )
 }

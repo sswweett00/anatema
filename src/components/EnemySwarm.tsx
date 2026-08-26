@@ -8,6 +8,7 @@ import {
   gameState,
   spawnEnemy,
   spawnBurst,
+  spawnWisp,
   setPhase,
   announce,
   world,
@@ -16,14 +17,18 @@ import {
   type Entity,
 } from '../ecs/world'
 import { sfx } from '../game/audio'
+import { pushSoul, pushDamage } from '../game/fx'
 import {
   abilities,
+  hasSynergy,
   XP_VALUES,
   xpForLevel,
   xpMultiplier,
   orbitDamage,
   orbitRadius,
   rollDamage,
+  vampHealPct,
+  stoneReduction,
 } from '../game/abilities'
 
 /*
@@ -378,6 +383,18 @@ export default function EnemySwarm() {
         /* Demir Yürek: her kesimde küçük can + duruş yenilenir */
         player.health = Math.min(player.maxHealth, player.health + 0.6)
         player.poise = Math.min(player.maxPoise, player.poise + 8)
+        /* Vampirizm: azami canın yüzdesi kadar em */
+        if (abilities.vamp > 0)
+          player.health = Math.min(
+            player.maxHealth,
+            player.health + player.maxHealth * vampHealPct()
+          )
+        /* ruh göğe yükselir + XP yazısı */
+        spawnWisp(e.position, ENEMY_KINDS[kind].color)
+        pushSoul(e.position.x, e.position.y, e.position.z, XP_VALUES[kind] * xpMultiplier(gameState.combo))
+        /* son darbeyi göster (kritikler zaten vuruş anında yazıldı) */
+        if (e.lastDmg !== undefined && !e.lastCrit)
+          pushDamage(e.position.x, e.position.y, e.position.z, e.lastDmg, false)
       }
       for (let i = 0; i < tmp.remove.length; i++) world.remove(tmp.remove[i])
 
@@ -458,10 +475,12 @@ export default function EnemySwarm() {
         ) {
           e.attackCooldown = 0.85
           const kind = e.enemyKind ?? 0
-          const dmg = Math.max(1, (e.damage ?? 5) - player.armor)
+          /* Taş Deri: alınan hasar kalıcı azalır */
+          const dmg = Math.max(1, Math.round(((e.damage ?? 5) - player.armor) * (1 - stoneReduction())))
           player.health -= dmg
           player.regenDelay = 0
-          const poiseHit = kind === 2 ? 26 : kind === 1 ? 12 : 7
+          /* Demir İrade sinerjisi: duruş asla kırılmaz */
+          const poiseHit = hasSynergy('will') ? 0 : kind === 2 ? 26 : kind === 1 ? 12 : 7
           player.poise = Math.max(0, player.poise - poiseHit)
           gameState.shake = Math.min(1, gameState.shake + 0.55)
           gameState.damageFlash = Math.min(1, gameState.damageFlash + 0.7)
@@ -505,6 +524,8 @@ export default function EnemySwarm() {
             if (d2 < outer2 && d2 > inner2) {
               const roll = rollDamage(orbitDamage(), player)
               e.health -= Math.max(1, roll.value - e.armor)
+              e.lastDmg = roll.value
+              e.lastCrit = roll.crit
               if (roll.crit) sfx.crit()
               e.hitFlash = 1
               const d = Math.sqrt(d2) || 1

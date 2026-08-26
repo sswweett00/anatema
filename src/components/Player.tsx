@@ -16,6 +16,9 @@ import {
   novaRadius,
   novaCooldown as novaCd,
   orbitCount,
+  ghoststepDamage,
+  ghoststepRadius,
+  rollDamage,
 } from '../game/abilities'
 
 /*
@@ -416,6 +419,28 @@ export default function Player() {
         p.invuln = 0.32
         sfx.dash()
         spawnBurst(p.position, 0xff8a3d, 10, 3.4, 0.4)
+
+        /* GÖLGE ADIMI: atılma noktasında gölge patlaması */
+        if (abilities.ghoststep > 0) {
+          const R2 = ghoststepRadius() * ghoststepRadius()
+          const el = enemies.entities
+          for (let i = 0; i < el.length; i++) {
+            const e = el[i]
+            if (e.dead) continue
+            const gx = e.position.x - p.position.x
+            const gz = e.position.z - p.position.z
+            if (gx * gx + gz * gz < R2) {
+              const roll = rollDamage(ghoststepDamage(), p)
+              e.health -= Math.max(1, roll.value - e.armor)
+              e.hitFlash = 1
+              e.lastDmg = roll.value
+              e.lastCrit = roll.crit
+              if (e.health <= 0) e.dead = true
+            }
+          }
+          spawnBurst(p.position, 0x8a6fd0, 16, 4.5, 0.5)
+          gameState.shake = Math.min(1, gameState.shake + 0.2)
+        }
       }
 
       tmp.move.set(0, 0, 0)
@@ -553,6 +578,7 @@ export default function Player() {
     group.current.rotation.x += (fallen - group.current.rotation.x) * Math.min(1, 5 * dt)
 
     /* ================= kamera ================= */
+    gameState.cam = camera /* hasar sayıları için dünya→ekran izdüşümü */
     const cam = camera as THREE.OrthographicCamera
     if (cam.isOrthographicCamera) {
       const targetZoom = THREE.MathUtils.clamp(Math.min(size.width, size.height) / 16, 28, 60)

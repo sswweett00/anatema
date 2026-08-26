@@ -12,6 +12,7 @@ import {
   type Entity,
 } from '../ecs/world'
 import { sfx } from '../game/audio'
+import { pushDamage } from '../game/fx'
 import {
   abilities,
   swordDamage,
@@ -125,9 +126,12 @@ export default function Weapons() {
             if (ed2 < R2) {
               const roll = rollDamage(swordDamage(), player) /* ağır hasar + kritik */
               e.health -= Math.max(2, roll.value - e.armor)
+              e.lastDmg = roll.value
+              e.lastCrit = roll.crit
               if (roll.crit) {
                 sfx.crit()
                 spawnBurst(e.position, 0xfff1b8, 6, 4.5, 0.4)
+                pushDamage(e.position.x, e.position.y, e.position.z, roll.value, true)
               }
               e.hitFlash = 1
               const ed = Math.sqrt(ed2) || 1
@@ -220,6 +224,8 @@ export default function Weapons() {
           if (dx * dx + dz * dz < rr * rr) {
             const dmg = Math.max(1, (b.damage ?? 10) - e.armor)
             e.health -= dmg
+            e.lastDmg = dmg
+            e.lastCrit = false
             e.hitFlash = 1
             e.velocity.addScaledVector(b.velocity, 0.09)
             sfx.hit()

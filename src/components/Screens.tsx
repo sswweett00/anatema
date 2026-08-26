@@ -18,6 +18,13 @@ import {
   Magnet,
   Angry,
   Link2,
+  Axe,
+  Footprints,
+  Ghost,
+  Bug,
+  Droplet,
+  Mountain,
+  Moon,
 } from 'lucide-react'
 import { gameState, setPhase } from '../ecs/world'
 import {
@@ -26,7 +33,6 @@ import {
   rollChoices,
   applyAbility,
   ownedSynergies,
-  MAX_LVL,
   type AbilityId,
 } from '../game/abilities'
 import { sfx } from '../game/audio'
@@ -196,30 +202,50 @@ const ABILITY_ICONS: Record<AbilityId, typeof Flame> = {
   storm: CloudLightning,
   frost: Snowflake,
   vortex: Tornado,
+  spikes: Axe,
+  pyre: Footprints,
+  phantom: Ghost,
+  venom: Bug,
   heart: HeartPulse,
   swift: Wind,
   armor: Shield,
   crit: Eye,
   magnet: Magnet,
   rage: Angry,
+  vamp: Droplet,
+  stone: Mountain,
+  ghoststep: Moon,
+  ferocity: Skull,
   mend: Heart,
 }
 
 function AbilityPips({ id }: { id: AbilityId }) {
   if (id === 'mend') return null
   const cur = abilities[id]
+  const shown = Math.min(cur, 5)
   return (
     <div className="mt-2 flex items-center justify-center gap-1">
-      {Array.from({ length: MAX_LVL }, (_, i) => (
-        <span
-          key={i}
-          className="h-1.5 w-3"
-          style={{
-            background: i < cur ? '#ff8a3d' : '#3a312b',
-            boxShadow: i < cur ? '0 0 6px rgba(255,138,61,0.8)' : 'none',
-          }}
-        />
-      ))}
+      {cur === 0 ? (
+        <span className="text-[9px] font-bold tracking-[0.24em] text-ash/60">YENİ</span>
+      ) : (
+        <>
+          {Array.from({ length: shown }, (_, i) => (
+            <span
+              key={i}
+              className="h-1.5 w-3"
+              style={{
+                background: '#ff8a3d',
+                boxShadow: '0 0 6px rgba(255,138,61,0.8)',
+              }}
+            />
+          ))}
+          {cur > 5 && (
+            <span className="font-display ml-0.5 text-[10px] font-black text-ember">
+              +{cur - 5}
+            </span>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -304,7 +330,7 @@ export function LevelUpScreen() {
                 </div>
                 {cur > 0 && id !== 'mend' && (
                   <div className="mt-0.5 text-[10px] font-bold tracking-[0.2em] text-ember">
-                    SV. {cur} → {Math.min(MAX_LVL, cur + 1)}
+                    SV. {cur} → {cur + 1}
                   </div>
                 )}
                 <AbilityPips id={id} />
