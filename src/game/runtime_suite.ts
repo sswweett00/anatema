@@ -24,11 +24,20 @@ import { resetRunCheckpoint, startRunCheckpoint } from './run_checkpoint'
 import { resetCheckpointPersistence, startCheckpointPersistence } from './checkpoint_persistence'
 import { resetCombatDirectorV2, startCombatDirectorV2 } from './combat_director_v2'
 import { resetEnemyBehaviorRuntime, startEnemyBehaviorRuntime } from './enemy_behavior_runtime'
+import { resetSimulationClock, startSimulationClock } from './simulation_clock'
+import { resetBiomeRuntime, startBiomeRuntime } from './biome_runtime'
+import { resetEnemyArchetypeRuntime, startEnemyArchetypeRuntime } from './enemy_archetype_runtime'
+import { resetRelicEffectRuntime, startRelicEffectRuntime } from './relic_effect_runtime'
+import { resetMetaProgression, startMetaProgression } from './meta_progression'
+import { validateContentContract } from './content_contract'
 
 type Stop = () => void
 type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
 
 const RUNTIMES: RuntimeSpec[] = [
+  { name: 'simulation-clock', start: startSimulationClock, reset: resetSimulationClock },
+  { name: 'content-contract', start: () => { validateContentContract(); return () => undefined }, reset: () => undefined },
+  { name: 'meta-progression', start: startMetaProgression, reset: resetMetaProgression },
   { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
   { name: 'input-assist', start: startInputAssist, reset: resetInputAssist },
   { name: 'motion', start: startMotionRuntime, reset: resetMotionRuntime },
@@ -45,6 +54,9 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'boss-ai', start: startBossAI, reset: resetBossAI },
   { name: 'combat-director-v2', start: startCombatDirectorV2, reset: resetCombatDirectorV2 },
   { name: 'enemy-behavior', start: startEnemyBehaviorRuntime, reset: resetEnemyBehaviorRuntime },
+  { name: 'enemy-archetypes', start: startEnemyArchetypeRuntime, reset: resetEnemyArchetypeRuntime },
+  { name: 'biomes', start: startBiomeRuntime, reset: resetBiomeRuntime },
+  { name: 'relic-effects', start: startRelicEffectRuntime, reset: resetRelicEffectRuntime },
   { name: 'progression', start: startProgressionRuntime, reset: resetProgressionRuntime },
   { name: 'vfx-events', start: startVfxEventRuntime, reset: resetVfxEventRuntime },
   { name: 'world-services', start: startGameServices, reset: resetGameServices },
