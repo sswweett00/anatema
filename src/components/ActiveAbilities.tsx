@@ -55,9 +55,16 @@ export default function ActiveAbilities() {
   const boltRefs = useRef<(THREE.Mesh | null)[]>([])
   const boltLife = useMemo(() => new Float32Array(BOLT_POOL), [])
 
-  const rings = useRef<{ frost: THREE.Mesh | null; vortex: THREE.Mesh | null }>({
+  const rings = useRef<{
+    frost: THREE.Mesh | null
+    vortex: THREE.Mesh | null
+    nova: THREE.Mesh | null
+    aura: THREE.Mesh | null
+  }>({
     frost: null,
     vortex: null,
+    nova: null,
+    aura: null,
   })
   const ringAnim = useRef({ frost: 0, vortex: 0 })
 

@@ -201,6 +201,30 @@ export const SYNERGIES: SynergyDef[] = [
     name: 'Buz ve Kor',
     desc: 'Yörünge korları %50 güçlenir, ayaz +1 sn',
   },
+  {
+    id: 'skyarcher',
+    pair: ['arrows', 'storm'],
+    name: 'Gök Okçusu',
+    desc: 'Ok hasarı %25 artar, yıldırım %20 hızlanır',
+  },
+  {
+    id: 'glacier',
+    pair: ['frost', 'nova'],
+    name: 'Buz Patlaması',
+    desc: 'Kül Fırtınası vurduklarını 2 sn dondurur',
+  },
+  {
+    id: 'reaper',
+    pair: ['vortex', 'crit'],
+    name: 'Girdap Celladı',
+    desc: 'Kritik şansın +%20 artar',
+  },
+  {
+    id: 'bloodpact',
+    pair: ['rage', 'heart'],
+    name: 'Kan Ahdi',
+    desc: 'Kan Hırsı %85 canın altında bile kudurur',
+  },
 ]
 
 export const hasSynergy = (id: string) => {
@@ -219,7 +243,9 @@ export const swordRange = () => 3.4 + abilities.steel * 0.15
 
 export const arrowCount = () => Math.min(1 + abilities.arrows, 7)
 export const arrowDamage = () =>
-  (6 + abilities.arrows * 3) * (hasSynergy('rain') ? 1.5 : 1)
+  (6 + abilities.arrows * 3) *
+  (hasSynergy('rain') ? 1.5 : 1) *
+  (hasSynergy('skyarcher') ? 1.25 : 1)
 export const arrowInterval = () => Math.max(0.16, 0.34 - abilities.arrows * 0.035)
 
 export const novaDamage = () => 12 + abilities.nova * 8
@@ -236,9 +262,10 @@ export const chainDamage = () =>
 export const chainTargets = () => Math.min(9, 2 + abilities.chain)
 export const chainInterval = () => Math.max(0.8, 1.7 - abilities.chain * 0.18)
 
-export const stormDamage = () => 30 + abilities.storm * 12
+export const stormDamage = () => (30 + abilities.storm * 12) * (hasSynergy('lord') ? 1.2 : 1)
 export const stormTargets = () => 1 + Math.ceil(abilities.storm / 2) + (hasSynergy('lord') ? 1 : 0)
-export const stormInterval = () => Math.max(1.8, 3.6 - abilities.storm * 0.35)
+export const stormInterval = () =>
+  Math.max(1.8, 3.6 - abilities.storm * 0.35) * (hasSynergy('skyarcher') ? 0.8 : 1)
 
 export const frostDamage = () => 6 + abilities.frost * 4
 export const frostRadius = () => 4 + abilities.frost * 0.8
@@ -249,11 +276,16 @@ export const vortexDamage = () => 10 + abilities.vortex * 6
 export const vortexRadius = () => 5.5 + abilities.vortex * 0.5
 export const vortexInterval = () => Math.max(3, 6.5 - abilities.vortex * 0.7)
 
-export const rageActive = (p: Entity) => abilities.rage > 0 && p.health < p.maxHealth * 0.7
+export const rageThreshold = () => (hasSynergy('bloodpact') ? 0.85 : 0.7)
+export const rageActive = (p: Entity) =>
+  abilities.rage > 0 && p.health < p.maxHealth * rageThreshold()
 export const rageMul = (p: Entity) => (rageActive(p) ? 1 + abilities.rage * 0.12 : 1)
 export const moveSpeed = (p?: Entity) => {
   const base = 5.4 + abilities.swift * 0.55
-  const r = p && abilities.rage > 0 && p.health < p.maxHealth * 0.7 ? 1 + abilities.rage * 0.06 : 1
+  const r =
+    p && abilities.rage > 0 && p.health < p.maxHealth * rageThreshold()
+      ? 1 + abilities.rage * 0.06
+      : 1
   return base * r
 }
 export const dashCooldownMax = () => Math.max(0.7, 1.3 - abilities.swift * 0.12)
@@ -263,7 +295,8 @@ export const armorValue = () => 1 + abilities.armor + Math.floor(gameState.level
 /* kritik + hırs çarpanı: tüm giden hasarlarda kullanılır */
 export function rollDamage(base: number, p: Entity): { value: number; crit: boolean } {
   const raged = base * rageMul(p)
-  const chance = abilities.crit * 0.12 + (hasSynergy('exec') ? 0.15 : 0)
+  const chance =
+    abilities.crit * 0.12 + (hasSynergy('exec') ? 0.15 : 0) + (hasSynergy('reaper') ? 0.2 : 0)
   if (chance > 0 && Math.random() < chance) {
     return { value: raged * (hasSynergy('exec') ? 3.2 : 2.4), crit: true }
   }
