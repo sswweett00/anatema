@@ -13,6 +13,7 @@ import { diagnosticsJson } from './game/diagnostics'
 import { resetRuntimeSuite, startRuntimeSuite } from './game/runtime_suite'
 import { resetGameServices } from './game/game_services'
 import { saveRunSnapshot } from './game/run_snapshot'
+import { CameraRig } from './game/camera_rig'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
@@ -50,12 +51,10 @@ class SceneIslandBoundary extends Component<{ name: string; children: ReactNode 
 
 const Scene = memo(function Scene({ quality, onPerformance }: { quality: QualityPreset; onPerformance: (snapshot: PerformanceSnapshot) => void }) {
   const controller = useRef(new PerformanceController(quality))
+  const cameraRig = useRef(new CameraRig())
   const lastReport = useRef(0)
   const controllerQuality = useRef(quality)
-  const cameraTarget = useRef(new THREE.Vector3(26, 26, 26))
-  const cameraLookAt = useRef(new THREE.Vector3(0, 0, 0))
-  const lastPlayer = useRef(new THREE.Vector3())
-  const smoothTarget = useRef(new THREE.Vector3())
+  const lastPhase = useRef(gameState.phase)
 
   useEffect(() => {
     if (controllerQuality.current !== quality) {
@@ -65,28 +64,23 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
     }
   }, [quality])
 
-  useFrame((_, dt) => {
+  useFrame((state, dt) => {
     try {
       const safeDt = Math.min(0.05, Math.max(0.001, dt))
       const snapshot = controller.current.sample(safeDt, enemies.entities.length)
       samplePerformance(snapshot.fps, safeDt)
       lastReport.current += safeDt
 
-      const camera = _.camera as THREE.OrthographicCamera
+      const camera = state.camera as THREE.OrthographicCamera
       const player = getPlayer()
-      if (player) {
-        const px = Number.isFinite(player.position.x) ? player.position.x : 0
-        const pz = Number.isFinite(player.position.z) ? player.position.z : 0
-        const vx = Number.isFinite(player.velocity.x) ? player.velocity.x : 0
-        const vz = Number.isFinite(player.velocity.z) ? player.velocity.z : 0
-        const speed = Math.min(1, Math.hypot(vx, vz) / 8)
+      if (lastPhase.current !== gameState.phase) {
+        lastPhase.current = gameState.phase
+        if (gameState.phase === 'playing' || gameState.phase === 'menu') cameraRig.current.reset(camera)
+      }
 
-        smoothTarget.current.set(px, 0, pz)
-        lastPlayer.current.lerp(smoothTarget.current, 1 - Math.exp(-5 * safeDt))
-        cameraLookAt.current.set(lastPlayer.current.x * 0.16, 0, lastPlayer.current.z * 0.16)
-        cameraTarget.current.set(26 + vx * 0.08, 26 + 0.4 * speed, 26 + vz * 0.08)
-        camera.position.lerp(cameraTarget.current, 1 - Math.exp(-4.5 * safeDt))
-        camera.lookAt(cameraLookAt.current)
+      if (player) {
+        cameraRig.current.addImpact(Math.min(1, Math.max(0, gameState.shake)))
+        cameraRig.current.update(camera, player, safeDt, snapshot.pressure)
       }
 
       if (lastReport.current >= 0.5) {
@@ -94,7 +88,7 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
         onPerformance(snapshot)
       }
     } catch (error) {
-      console.error('[ANATHEMA] performance frame failed', error)
+      console.error('[ANATHEMA] performance/camera frame failed', error)
     }
   })
 
