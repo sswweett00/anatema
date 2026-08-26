@@ -6,6 +6,7 @@ import { initAudio, sfx } from './game/audio'
 import { resetAbilities } from './game/abilities'
 import { loadProfile, recordRun, type Profile, type QualityPreset } from './game/profile'
 import { PerformanceController, type PerformanceSnapshot } from './game/performance'
+import { resetRunDirector, startRunDirector } from './game/mechanics'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import EnemySwarm from './components/EnemySwarm'
@@ -98,6 +99,11 @@ export default function App() {
   })
   const runRecorded = useRef(false)
 
+  useEffect(() => {
+    const stop = startRunDirector()
+    return stop
+  }, [])
+
   useEffect(() => onPhase((next) => {
     setPh(next)
     if (next === 'playing') runRecorded.current = false
@@ -140,6 +146,7 @@ export default function App() {
     } catch (err) {
       console.warn('Ses başlatılamadı (oyun sessiz devam eder):', err)
     }
+    resetRunDirector()
     resetAbilities()
     resetRun()
     sfx.start()
