@@ -4,7 +4,7 @@ import { OrthographicCamera } from '@react-three/drei'
 import { onPhase, setPhase, resetRun, gameState, enemies, type Phase } from './ecs/world'
 import { initAudio, sfx } from './game/audio'
 import { resetAbilities } from './game/abilities'
-import { loadProfile, recordRun, type Profile } from './game/profile'
+import { loadProfile, recordRun, type Profile, type QualityPreset } from './game/profile'
 import { PerformanceController, type PerformanceSnapshot } from './game/performance'
 import Environment from './components/Environment'
 import Player from './components/Player'
@@ -18,9 +18,18 @@ import DamageNumbers from './components/DamageNumbers'
 import ProfilePanel from './components/ProfilePanel'
 import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './components/Screens'
 
-const Scene = memo(function Scene({ onPerformance }: { onPerformance: (snapshot: PerformanceSnapshot) => void }) {
-  const controller = useRef(new PerformanceController('auto'))
+const Scene = memo(function Scene({ quality, onPerformance }: { quality: QualityPreset; onPerformance: (snapshot: PerformanceSnapshot) => void }) {
+  const controller = useRef(new PerformanceController(quality))
   const lastReport = useRef(0)
+  const controllerQuality = useRef(quality)
+
+  useEffect(() => {
+    if (controllerQuality.current !== quality) {
+      controller.current = new PerformanceController(quality)
+      controllerQuality.current = quality
+      lastReport.current = 0
+    }
+  }, [quality])
 
   useFrame((_, dt) => {
     const snapshot = controller.current.sample(dt, enemies.entities.length)
@@ -77,7 +86,8 @@ class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean
 
 export default function App() {
   const [phase, setPh] = useState<Phase>('menu')
-  const [, setProfile] = useState<Profile>(() => loadProfile())
+  const [profile, setProfile] = useState<Profile>(() => loadProfile())
+  const [quality, setQualityState] = useState<QualityPreset>(() => loadProfile().quality)
   const [performance, setPerformance] = useState<PerformanceSnapshot>({
     fps: 60,
     frameMs: 16.7,
@@ -102,6 +112,16 @@ export default function App() {
       }))
     }
   }), [])
+
+  useEffect(() => {
+    const onProfile = (event: Event) => {
+      const next = (event as CustomEvent<Profile>).detail
+      setProfile(next)
+      setQualityState(next.quality)
+    }
+    window.addEventListener('anatema:profile', onProfile)
+    return () => window.removeEventListener('anatema:profile', onProfile)
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -132,12 +152,12 @@ export default function App() {
     <EmberBoundary>
       <div className="font-body text-bone bg-void relative h-dvh w-screen overflow-hidden">
         <Canvas shadows dpr={dpr} gl={{ antialias: performance.recommendedDpr >= 1, powerPreference: 'high-performance' }}>
-          <Scene onPerformance={setPerformance} />
+          <Scene quality={quality} onPerformance={setPerformance} />
         </Canvas>
         <div className="vignette pointer-events-none absolute inset-0 z-10" />
         {import.meta.env.DEV && phase === 'playing' && (
           <div className="pointer-events-none absolute left-3 top-3 z-50 rounded bg-black/50 px-2 py-1 font-mono text-[10px] text-white/70">
-            {Math.round(performance.fps)} FPS · {enemies.entities.length} ENEMIES · {performance.recommendedDpr.toFixed(2)}× DPR
+            {Math.round(performance.fps)} FPS · {enemies.entities.length} ENEMIES · {quality.toUpperCase()} · {performance.recommendedDpr.toFixed(2)}× DPR
           </div>
         )}
         {(phase === 'playing' || phase === 'paused' || phase === 'levelup') && <HUD />}
