@@ -66,6 +66,16 @@ const ABILITY_ICONS: Record<AbilityId, typeof Flame> = {
   stone: Mountain,
   ghoststep: Moon,
   ferocity: Skull,
+  thorns: ShieldAlert,
+  laststand: LifeBuoy,
+  focus: Target,
+  momentum: Gauge,
+  adrenaline: Activity,
+  bulwark: Castle,
+  greed: Gem,
+  harvest: Wheat,
+  scholar: BookOpen,
+  warlord: Crown,
   mend: Heart,
 }
 

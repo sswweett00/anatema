@@ -53,6 +53,7 @@ export type Entity = {
   novaCooldown?: number
   invuln?: number
   facingX?: number
+  lastStandUsed?: boolean
   facingZ?: number
 }
 
@@ -188,6 +189,7 @@ export function spawnPlayer(): Entity {
     invuln: 0,
     facingX: 0,
     facingZ: 1,
+    lastStandUsed: false,
   }
   world.add(p)
   return p
@@ -316,6 +318,7 @@ export function resetRun() {
   p.invuln = 0
   p.facingX = 0
   p.facingZ = 1
+  p.lastStandUsed = false
   gameState.time = 0
   gameState.kills = 0
   gameState.level = 1

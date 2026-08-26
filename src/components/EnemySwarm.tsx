@@ -29,6 +29,12 @@ import {
   rollDamage,
   vampHealPct,
   stoneReduction,
+  thornsDamage,
+  bulwarkReduction,
+  harvestChance,
+  harvestHeal,
+  lastStandHpPct,
+  milestoneHeal,
 } from '../game/abilities'
 
 /*
@@ -389,6 +395,11 @@ export default function EnemySwarm() {
             player.maxHealth,
             player.health + player.maxHealth * vampHealPct()
           )
+        /* Can Hasadı: kesimde can yenileme şansı */
+        if (abilities.harvest > 0 && Math.random() < harvestChance()) {
+          player.health = Math.min(player.maxHealth, player.health + harvestHeal())
+          spawnBurst(player.position, 0x6fd08a, 4, 2, 0.4)
+        }
         /* ruh göğe yükselir + XP yazısı */
         spawnWisp(e.position, ENEMY_KINDS[kind].color)
         pushSoul(e.position.x, e.position.y, e.position.z, XP_VALUES[kind] * xpMultiplier(gameState.combo))
@@ -406,8 +417,8 @@ export default function EnemySwarm() {
         announce(`${ms * 50} RUH KESİLDİ — SÜRÜ AZGINLAŞIYOR`)
         gameState.shake = Math.min(1, gameState.shake + 0.45)
         sfx.wave()
-        /* ödül: küçük can */
-        player.health = Math.min(player.maxHealth, player.health + 10)
+        /* ödül: Altın Göz ile büyüyen can yenileme */
+        player.health = Math.min(player.maxHealth, player.health + milestoneHeal(player.maxHealth))
       }
 
       /* ---- seviye atlamalar ---- */
@@ -475,9 +486,38 @@ export default function EnemySwarm() {
         ) {
           e.attackCooldown = 0.85
           const kind = e.enemyKind ?? 0
+          /* Kalkan Duvarı: çevre kalabalıklaştıkça daha az hasar */
+          let nearby = 0
+          if (abilities.bulwark > 0) {
+            for (let j = 0; j < list.length && nearby < 13; j++) {
+              const o = list[j]
+              if (o === e || o.dead) continue
+              const ox = o.position.x - player.position.x
+              const oz = o.position.z - player.position.z
+              if (ox * ox + oz * oz < 16) nearby++
+            }
+          }
           /* Taş Deri: alınan hasar kalıcı azalır */
-          const dmg = Math.max(1, Math.round(((e.damage ?? 5) - player.armor) * (1 - stoneReduction())))
+          const dmg = Math.max(
+            1,
+            Math.round(
+              ((e.damage ?? 5) - player.armor) *
+                (1 - stoneReduction()) *
+                (1 - bulwarkReduction(nearby))
+            )
+          )
           player.health -= dmg
+
+          /* Dikenli Plaka: saldırgan hasarın katını geri yer */
+          if (abilities.thorns > 0) {
+            const td = thornsDamage()
+            e.health -= td
+            e.hitFlash = 1
+            e.lastDmg = td
+            e.lastCrit = false
+            spawnBurst(e.position, 0x9a8c74, 3, 2.4, 0.3)
+            if (e.health <= 0) e.dead = true
+          }
           player.regenDelay = 0
           /* Demir İrade sinerjisi: duruş asla kırılmaz */
           const poiseHit = hasSynergy('will') ? 0 : kind === 2 ? 26 : kind === 1 ? 12 : 7
@@ -494,9 +534,22 @@ export default function EnemySwarm() {
             gameState.shake = 1
           }
           if (player.health <= 0) {
-            player.health = 0
-            sfx.die()
-            setPhase('dead')
+            /* SON DİRENİŞ: bir kez küllerinden diril */
+            if (abilities.laststand > 0 && !player.lastStandUsed) {
+              player.lastStandUsed = true
+              player.health = player.maxHealth * lastStandHpPct()
+              if (hasSynergy('phoenix')) player.poise = player.maxPoise
+              player.invuln = 2
+              gameState.shake = 1
+              sfx.levelup()
+              announce('SON DİRENİŞ — KÜLLERİNDEN DOĞDUN')
+              spawnBurst(player.position, 0xffb15c, 34, 6.5, 0.9)
+              spawnBurst(player.position, 0xe6dcc8, 18, 4, 0.6)
+            } else {
+              player.health = 0
+              sfx.die()
+              setPhase('dead')
+            }
           }
         }
 
