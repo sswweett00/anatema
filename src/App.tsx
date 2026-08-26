@@ -18,6 +18,7 @@ import { resolveRenderQuality } from './game/render_quality'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
+import AbilityFieldVFX from './components/AbilityFieldVFX'
 import EnemySwarm from './components/EnemySwarm'
 import Weapons from './components/Weapons'
 import ActiveAbilities from './components/ActiveAbilities'
@@ -103,6 +104,7 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
       <SceneIslandBoundary name="glows"><Glows /></SceneIslandBoundary>
       <SceneIslandBoundary name="player"><Player /></SceneIslandBoundary>
       <SceneIslandBoundary name="ability-vfx"><AbilityVFX /></SceneIslandBoundary>
+      <SceneIslandBoundary name="ability-field-vfx"><AbilityFieldVFX /></SceneIslandBoundary>
       <SceneIslandBoundary name="enemy-swarm"><EnemySwarm /></SceneIslandBoundary>
       <SceneIslandBoundary name="weapons"><Weapons /></SceneIslandBoundary>
       <SceneIslandBoundary name="active-abilities"><ActiveAbilities /></SceneIslandBoundary>
