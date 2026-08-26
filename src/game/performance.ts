@@ -9,6 +9,12 @@ export interface PerformanceSnapshot {
   enemyScale: number
 }
 
+export const runtimeQuality = {
+  particleScale: 0.7,
+  enemyScale: 0.9,
+  dpr: 1,
+}
+
 const PRESETS: Record<Exclude<QualityPreset, 'auto'>, PerformanceSnapshot> = {
   low: { fps: 45, frameMs: 22.2, pressure: 0, recommendedDpr: 0.85, particleScale: 0.45, enemyScale: 0.75 },
   balanced: { fps: 60, frameMs: 16.7, pressure: 0, recommendedDpr: 1, particleScale: 0.7, enemyScale: 0.9 },
@@ -46,7 +52,11 @@ export class PerformanceController {
       }
     }
 
-    return this.snapshot()
+    const snapshot = this.snapshot()
+    runtimeQuality.particleScale = snapshot.particleScale
+    runtimeQuality.enemyScale = snapshot.enemyScale
+    runtimeQuality.dpr = snapshot.recommendedDpr
+    return snapshot
   }
 
   snapshot(): PerformanceSnapshot {
