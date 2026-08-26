@@ -16,6 +16,7 @@ import { resetPerformanceGovernor } from './performance_governor'
 import { resetGameServices, startGameServices } from './game_services'
 import { resetMotionRuntime, startMotionRuntime } from './motion_runtime'
 import { resetExpandedAbilityRuntime, startExpandedAbilityRuntime } from './expanded_ability_runtime'
+import { resetSystemIntegrity, startSystemIntegrity } from './system_integrity'
 
 type Stop = () => void
 type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
@@ -38,6 +39,7 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'world-services', start: startGameServices, reset: resetGameServices },
   { name: 'runtime-safety', start: startRuntimeSafety, reset: resetRuntimeSafety },
   { name: 'invariants', start: startInvariantRuntime, reset: resetInvariantRuntime },
+  { name: 'system-integrity', start: startSystemIntegrity, reset: resetSystemIntegrity },
 ]
 
 let mounted = false
