@@ -10,22 +10,27 @@ const target = new THREE.Vector3()
 let running = false
 let unsubscribeTick: (() => void) | undefined
 let separationTimer = 0
+let steeringTimer = 0
 let lastTierNotice = -10
 let lastTier = 0
 let lastCombo = 0
 
 const spatial = new SpatialHash(2.6)
+const aliveBuffer: Entity[] = []
 
 function rebuildEnemyGrid() {
-  spatial.build(enemies.entities.filter((enemy) => !enemy.dead))
+  spatial.build(enemies.entities)
 }
 
-function aliveEnemies(): Entity[] {
-  return enemies.entities.filter((enemy) => !enemy.dead)
+function rebuildAliveBuffer() {
+  aliveBuffer.length = 0
+  for (const enemy of enemies.entities) {
+    if (!enemy.dead) aliveBuffer.push(enemy)
+  }
 }
 
 function nearestEnemy(origin: THREE.Vector3, range: number): Entity | undefined {
-  return spatial.nearest(origin, range, aliveEnemies())
+  return spatial.nearest(origin, range, enemies.entities)
 }
 
 function steerProjectiles(dt: number) {
@@ -35,9 +40,14 @@ function steerProjectiles(dt: number) {
   const strength = Math.min(0.72, 0.08 + abilities.arrows * 0.045)
   const acquireRange = 8 + Math.min(12, abilities.arrows * 0.6)
   const maxTurn = 0.34
+  const largeSwarm = aliveBuffer.length > 850
 
-  for (const bullet of bullets.entities) {
+  // High entity pressure trades a tiny amount of homing responsiveness for stable CPU cost.
+  for (let i = 0; i < bullets.entities.length; i++) {
+    const bullet = bullets.entities[i]
     if ((bullet.life ?? 0) <= 0 || bullet.dead) continue
+    if (largeSwarm && (i & 1) === 1) continue
+
     const enemy = nearestEnemy(bullet.position, acquireRange)
     if (!enemy) continue
 
@@ -62,17 +72,17 @@ function steerProjectiles(dt: number) {
 
 function separateSwarm(dt: number) {
   const quality = THREE.MathUtils.clamp(runtimeQuality.enemyScale, 0.66, 1)
-  const list = aliveEnemies()
+  const list = aliveBuffer
   if (list.length < 2) return
 
   const radius = 0.72 + (1 - quality) * 0.15
   const radius2 = radius * radius
   const repel = list.length > 900 ? 0.42 : 0.58
-  const maxNeighbors = list.length > 1100 ? 3 : 5
+  const maxNeighbors = list.length > 1100 ? 3 : list.length > 800 ? 4 : 5
 
   for (const e of list) {
     let neighbors = 0
-    spatial.forEachNearby(e.position, radius, list, (other) => {
+    spatial.forEachNearby(e.position, radius, enemies.entities, (other) => {
       if (other === e || other.dead || neighbors >= maxNeighbors) return
       const dx = e.position.x - other.position.x
       const dz = e.position.z - other.position.z
@@ -139,14 +149,23 @@ function comboFeedback() {
 function tick(dt: number) {
   if (gameState.phase !== 'playing') return
 
+  rebuildAliveBuffer()
+
   separationTimer -= dt
   if (separationTimer <= 0) {
-    separationTimer = enemies.entities.length > 900 ? 0.065 : 0.045
+    separationTimer = aliveBuffer.length > 900 ? 0.065 : 0.045
     rebuildEnemyGrid()
     separateSwarm(dt)
   }
 
-  if (abilities.arrows > 0 && bullets.entities.length > 0) steerProjectiles(dt)
+  // Under extreme bullet pressure, steer on alternating simulation ticks instead of every tick.
+  steeringTimer -= dt
+  const steerInterval = bullets.entities.length > 700 ? 1 / 30 : 1 / 60
+  if (steeringTimer <= 0) {
+    steeringTimer += steerInterval
+    if (abilities.arrows > 0 && bullets.entities.length > 0) steerProjectiles(steerInterval)
+  }
+
   comboFeedback()
 }
 
@@ -162,16 +181,20 @@ export function stopCombatPolish() {
   unsubscribeTick?.()
   unsubscribeTick = undefined
   separationTimer = 0
+  steeringTimer = 0
   lastTierNotice = -10
   lastTier = 0
   lastCombo = 0
+  aliveBuffer.length = 0
   spatial.clear()
 }
 
 export function resetCombatPolish() {
   separationTimer = 0
+  steeringTimer = 0
   lastTierNotice = -10
   lastTier = 0
   lastCombo = 0
+  aliveBuffer.length = 0
   spatial.clear()
 }
