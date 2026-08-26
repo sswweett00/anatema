@@ -51,13 +51,22 @@ class TypedEventBus {
     }
   }
 
-  clear(): void {
+  clearListeners(): void {
     this.listeners.clear()
   }
 }
 
 export const events = new TypedEventBus()
 
+/**
+ * Events are transient notifications, not run state. Run reset must preserve
+ * subscribers because HUD/VFX/progression components can stay mounted for the
+ * entire application lifetime.
+ */
 export function resetEvents(): void {
-  events.clear()
+  // Intentionally a no-op. There is no queued event state to reset.
+}
+
+export function clearEventListeners(): void {
+  events.clearListeners()
 }
