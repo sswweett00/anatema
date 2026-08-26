@@ -15,6 +15,7 @@ import { resetInputAssist, startInputAssist } from './input_assist'
 import { resetPerformanceGovernor } from './performance_governor'
 import { resetGameServices, startGameServices } from './game_services'
 import { resetMotionRuntime, startMotionRuntime } from './motion_runtime'
+import { resetExpandedAbilityRuntime, startExpandedAbilityRuntime } from './expanded_ability_runtime'
 
 type Stop = () => void
 type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
@@ -29,6 +30,7 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'mega-systems', start: startMegaSystemsV2, reset: resetMegaSystemsV2 },
   { name: 'mega-completion', start: startMegaCompletion, reset: resetMegaCompletion },
   { name: 'combat-polish', start: startCombatPolish, reset: resetCombatPolish },
+  { name: 'expanded-abilities', start: startExpandedAbilityRuntime, reset: resetExpandedAbilityRuntime },
   { name: 'status-effects', start: startStatusRuntime, reset: resetStatusRuntime },
   { name: 'boss-ai', start: startBossAI, reset: resetBossAI },
   { name: 'progression', start: startProgressionRuntime, reset: resetProgressionRuntime },
