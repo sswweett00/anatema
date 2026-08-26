@@ -1,5 +1,4 @@
-import * as THREE from 'three'
-import { bullets, enemies, gameState, particles, world, MAX_ENEMIES, type Entity } from '../ecs/world'
+import { bullets, enemies, gameState, lootEntities, particles, world, MAX_ENEMIES, type Entity } from '../ecs/world'
 
 let running = false
 let frame = 0
@@ -8,6 +7,7 @@ let accumulator = 0
 
 const MAX_BULLETS = 320
 const MAX_PARTICLES = 900
+const MAX_LOOT = 96
 const MAX_STEP = 0.1
 
 function finite(value: number, fallback = 0): number {
@@ -34,6 +34,8 @@ function sanitizeEntity(entity: Entity) {
   entity.invuln = Math.max(0, finite(entity.invuln))
   entity.life = Math.max(0, finite(entity.life))
   entity.maxLife = Math.max(0, finite(entity.maxLife))
+  entity.value = Math.max(0, finite(entity.value))
+  entity.age = Math.max(0, finite(entity.age))
 
   if (entity.health <= 0) entity.dead = true
 }
@@ -43,16 +45,14 @@ function trimOverflow<T extends Entity>(collection: { entities: T[] }, max: numb
 
   const overflow = collection.entities.length - max
   const candidates = collection.entities
-    .map((entity, index) => ({ entity, index }))
+    .map((entity) => entity)
     .sort((a, b) => {
-      const dead = Number(Boolean(b.entity.dead)) - Number(Boolean(a.entity.dead))
+      const dead = Number(Boolean(b.dead)) - Number(Boolean(a.dead))
       if (dead !== 0) return dead
-      return (b.entity.age ?? 0) - (a.entity.age ?? 0)
+      return (b.age ?? 0) - (a.age ?? 0)
     })
 
-  for (let i = 0; i < overflow; i++) {
-    world.remove(candidates[i].entity)
-  }
+  for (let i = 0; i < overflow; i++) world.remove(candidates[i])
 }
 
 function tick() {
@@ -61,13 +61,15 @@ function tick() {
   for (const e of enemies.entities) sanitizeEntity(e)
   for (const b of bullets.entities) sanitizeEntity(b)
   for (const p of particles.entities) sanitizeEntity(p)
+  for (const item of lootEntities.entities) sanitizeEntity(item)
 
   trimOverflow(enemies, MAX_ENEMIES)
   trimOverflow(bullets, MAX_BULLETS)
   trimOverflow(particles, MAX_PARTICLES)
+  trimOverflow(lootEntities, MAX_LOOT)
 
   gameState.time = Math.max(0, finite(gameState.time))
-  gameState.xp = Math.max(0, finite(gameState.xp))
+  gameState.xp = Math.max(0, Math.min(1_000_000, finite(gameState.xp)))
   gameState.xpNext = Math.max(1, finite(gameState.xpNext, 1))
   gameState.combo = Math.max(0, Math.floor(finite(gameState.combo)))
   gameState.comboTimer = Math.max(0, Math.min(10, finite(gameState.comboTimer)))
