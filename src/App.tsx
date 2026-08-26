@@ -15,6 +15,7 @@ import Glows from './components/Glows'
 import Particles from './components/Particles'
 import HUD from './components/HUD'
 import DamageNumbers from './components/DamageNumbers'
+import ProfilePanel from './components/ProfilePanel'
 import { StartScreen, DeathScreen, PauseScreen, LevelUpScreen } from './components/Screens'
 
 const Scene = memo(function Scene({ onPerformance }: { onPerformance: (snapshot: PerformanceSnapshot) => void }) {
@@ -65,9 +66,7 @@ class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean
             <div className="text-[11px] font-bold tracking-[0.5em] text-rust">KÜLLER SAVRULDU</div>
             <h1 className="font-display mt-3 text-4xl font-black tracking-[0.1em] text-bone">BİR ŞEYLER KIRILDI</h1>
             <p className="mt-3 text-sm text-ash">Ayin beklenmedik bir şekilde söndü. Yeniden doğ ve kaldığın yerden devam et.</p>
-            <button onClick={() => window.location.reload()} className="btn-rust font-display mt-7 inline-block px-10 py-3.5 text-base font-black tracking-[0.28em] text-[#ffe9d2]">
-              YENİDEN DOĞ
-            </button>
+            <button onClick={() => window.location.reload()} className="btn-rust font-display mt-7 inline-block px-10 py-3.5 text-base font-black tracking-[0.28em] text-[#ffe9d2]">YENİDEN DOĞ</button>
           </div>
         </div>
       )
@@ -135,18 +134,16 @@ export default function App() {
         <Canvas shadows dpr={dpr} gl={{ antialias: performance.recommendedDpr >= 1, powerPreference: 'high-performance' }}>
           <Scene onPerformance={setPerformance} />
         </Canvas>
-
         <div className="vignette pointer-events-none absolute inset-0 z-10" />
-
         {import.meta.env.DEV && phase === 'playing' && (
           <div className="pointer-events-none absolute left-3 top-3 z-50 rounded bg-black/50 px-2 py-1 font-mono text-[10px] text-white/70">
             {Math.round(performance.fps)} FPS · {enemies.entities.length} ENEMIES · {performance.recommendedDpr.toFixed(2)}× DPR
           </div>
         )}
-
         {(phase === 'playing' || phase === 'paused' || phase === 'levelup') && <HUD />}
         {phase === 'playing' && <DamageNumbers />}
         {phase === 'menu' && <StartScreen onStart={start} />}
+        {phase === 'menu' && <ProfilePanel />}
         {phase === 'dead' && <DeathScreen onRestart={start} />}
         {phase === 'paused' && <PauseScreen />}
         {phase === 'levelup' && <LevelUpScreen />}
