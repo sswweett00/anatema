@@ -135,7 +135,6 @@ function sanitizeEntity(entity: Entity): void {
 function tickMotion(dt: number): void {
   const safeDt = Math.min(0.05, Math.max(0.001, dt))
   stepRigidBodyContacts(safeDt)
-  resolveEnemySeparation()
 
   const player = getPlayer()
   if (player) sanitizeEntity(player)
