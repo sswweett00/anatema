@@ -9,6 +9,7 @@ import { PerformanceController, type PerformanceSnapshot } from './game/performa
 import { resetRunDirector, startRunDirector } from './game/mechanics'
 import Environment from './components/Environment'
 import Player from './components/Player'
+import AbilityVFX from './components/AbilityVFX'
 import EnemySwarm from './components/EnemySwarm'
 import Weapons from './components/Weapons'
 import ActiveAbilities from './components/ActiveAbilities'
@@ -49,6 +50,7 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
       <Environment />
       <Glows />
       <Player />
+      <AbilityVFX />
       <EnemySwarm />
       <Weapons />
       <ActiveAbilities />
