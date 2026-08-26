@@ -4,27 +4,27 @@ import { enemies, gameState, getPlayer, world, type Entity } from '../ecs/world'
 export interface MotionConfig {
   acceleration: number
   deceleration: number
-  airControl: number
   maxSpeed: number
   dashSpeed: number
   dashDuration: number
-  dashDrag: number
-  knockbackDrag: number
   separationRadius: number
   separationStrength: number
+  enemySpeedMultiplier: number
+  groundDrag: number
+  dashDrag: number
 }
 
 export const MOTION_CONFIG: MotionConfig = {
   acceleration: 28,
   deceleration: 34,
-  airControl: 1,
-  maxSpeed: 8,
+  maxSpeed: 8.5,
   dashSpeed: 24,
   dashDuration: 0.16,
-  dashDrag: 7,
-  knockbackDrag: 10,
-  separationRadius: 0.78,
+  separationRadius: 0.8,
   separationStrength: 3.2,
+  enemySpeedMultiplier: 1.45,
+  groundDrag: 8,
+  dashDrag: 1.5,
 }
 
 const tmp = new THREE.Vector3()
@@ -49,14 +49,15 @@ export function integratePlayerMotion(player: Entity, desired: THREE.Vector3, dt
   } else {
     const desiredSpeed = Math.min(MOTION_CONFIG.maxSpeed, desired.length())
     if (desiredSpeed > 0.001) desired.normalize().multiplyScalar(desiredSpeed)
-
     const sharpness = desiredSpeed > 0.001 ? MOTION_CONFIG.acceleration : MOTION_CONFIG.deceleration
     player.velocity.x = dampScalar(player.velocity.x, desired.x, sharpness, safeDt)
     player.velocity.z = dampScalar(player.velocity.z, desired.z, sharpness, safeDt)
   }
 
-  player.velocity.x *= Math.max(0, 1 - (MOTION_CONFIG.knockbackDrag + MOTION_CONFIG.dashDrag * (dashTime > 0 ? 0.1 : 1)) * safeDt * 0.08)
-  player.velocity.z *= Math.max(0, 1 - (MOTION_CONFIG.knockbackDrag + MOTION_CONFIG.dashDrag * (dashTime > 0 ? 0.1 : 1)) * safeDt * 0.08)
+  const drag = dashTime > 0 ? MOTION_CONFIG.dashDrag : MOTION_CONFIG.groundDrag
+  const factor = Math.exp(-drag * safeDt)
+  player.velocity.x *= factor
+  player.velocity.z *= factor
 
   const speed = Math.hypot(player.velocity.x, player.velocity.z)
   if (speed > MOTION_CONFIG.maxSpeed * 1.35) {
@@ -91,13 +92,12 @@ export function resolveEnemySeparation(): void {
   for (let i = 0; i < list.length; i++) {
     const a = list[i]
     if (a.dead) continue
-
     let neighbors = 0
+
     for (let j = Math.max(0, i - 12); j < Math.min(list.length, i + 13) && neighbors < maxNeighbors; j++) {
       if (i === j) continue
       const b = list[j]
       if (b.dead) continue
-
       offset.subVectors(a.position, b.position)
       offset.y = 0
       const d2 = offset.lengthSq()
@@ -110,33 +110,77 @@ export function resolveEnemySeparation(): void {
       a.velocity.z += offset.z
       neighbors++
     }
+  }
+}
 
-    const speed = Math.hypot(a.velocity.x, a.velocity.z)
-    const cap = Math.max(2, finite(a.speed, 2) * 1.4)
+function sanitizeEntity(entity: Entity): void {
+  entity.velocity.x = finite(entity.velocity.x)
+  entity.velocity.y = finite(entity.velocity.y)
+  entity.velocity.z = finite(entity.velocity.z)
+  entity.position.x = finite(entity.position.x)
+  entity.position.y = finite(entity.position.y)
+  entity.position.z = finite(entity.position.z)
+
+  if (entity.isPlayer || entity.isEnemy) {
+    const speed = Math.hypot(entity.velocity.x, entity.velocity.z)
+    const cap = entity.isPlayer
+      ? MOTION_CONFIG.maxSpeed * 1.35
+      : Math.max(2, finite(entity.speed, 2) * MOTION_CONFIG.enemySpeedMultiplier)
     if (speed > cap) {
       const scale = cap / speed
-      a.velocity.x *= scale
-      a.velocity.z *= scale
+      entity.velocity.x *= scale
+      entity.velocity.z *= scale
     }
   }
 }
 
-export function resetMotionState(): void {
+function tickMotion(dt: number): void {
+  const safeDt = Math.min(0.05, Math.max(0.001, dt))
+  resolveEnemySeparation()
+
+  const player = getPlayer()
+  if (player) sanitizeEntity(player)
+  for (const enemy of enemies.entities) {
+    if (enemy.dead) continue
+    sanitizeEntity(enemy)
+  }
+
+  gameState.shake = Math.max(0, finite(gameState.shake) - safeDt * 2.1)
+}
+
+let running = false
+let frame = 0
+let last = 0
+
+export function startMotionRuntime() {
+  if (running || typeof window === 'undefined') return stopMotionRuntime
+  running = true
+  last = performance.now()
+  const loop = (now: number) => {
+    if (!running) return
+    tickMotion((now - last) / 1000)
+    last = now
+    frame = window.requestAnimationFrame(loop)
+  }
+  frame = window.requestAnimationFrame(loop)
+  return stopMotionRuntime
+}
+
+export function stopMotionRuntime() {
+  running = false
+  if (frame) window.cancelAnimationFrame(frame)
+  frame = 0
+  last = 0
+}
+
+export function resetMotionRuntime() {
+  stopMotionRuntime()
   const player = getPlayer()
   if (player) {
     player.velocity.set(0, 0, 0)
     player.dashTime = 0
     player.dashCooldown = 0
   }
-
-  for (const entity of world.entities) {
-    if (!entity.velocity) entity.velocity = new THREE.Vector3()
-    entity.velocity.set(
-      finite(entity.velocity.x),
-      finite(entity.velocity.y),
-      finite(entity.velocity.z),
-    )
-  }
-
+  for (const entity of world.entities) sanitizeEntity(entity)
   gameState.shake = 0
 }
