@@ -78,7 +78,7 @@ class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean
 
 export default function App() {
   const [phase, setPh] = useState<Phase>('menu')
-  const [profile, setProfile] = useState<Profile>(() => loadProfile())
+  const [, setProfile] = useState<Profile>(() => loadProfile())
   const [performance, setPerformance] = useState<PerformanceSnapshot>({
     fps: 60,
     frameMs: 16.7,
@@ -115,15 +115,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  useEffect(() => {
-    const onProfile = (e: Event) => {
-      const detail = (e as CustomEvent<Profile>).detail
-      if (detail) setProfile(detail)
-    }
-    window.addEventListener('anatema:profile', onProfile)
-    return () => window.removeEventListener('anatema:profile', onProfile)
-  }, [])
-
   const start = useCallback(() => {
     try {
       initAudio()
@@ -141,11 +132,7 @@ export default function App() {
   return (
     <EmberBoundary>
       <div className="font-body text-bone bg-void relative h-dvh w-screen overflow-hidden">
-        <Canvas
-          shadows
-          dpr={dpr}
-          gl={{ antialias: performance.recommendedDpr >= 1, powerPreference: 'high-performance' }}
-        >
+        <Canvas shadows dpr={dpr} gl={{ antialias: performance.recommendedDpr >= 1, powerPreference: 'high-performance' }}>
           <Scene onPerformance={setPerformance} />
         </Canvas>
 
@@ -159,7 +146,7 @@ export default function App() {
 
         {(phase === 'playing' || phase === 'paused' || phase === 'levelup') && <HUD />}
         {phase === 'playing' && <DamageNumbers />}
-        {phase === 'menu' && <StartScreen onStart={start} profile={profile} />}
+        {phase === 'menu' && <StartScreen onStart={start} />}
         {phase === 'dead' && <DeathScreen onRestart={start} />}
         {phase === 'paused' && <PauseScreen />}
         {phase === 'levelup' && <LevelUpScreen />}
