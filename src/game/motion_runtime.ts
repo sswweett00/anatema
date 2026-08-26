@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { enemies, gameState, getPlayer, world, type Entity } from '../ecs/world'
+import { stepRigidBodyContacts } from './rigidbody_runtime'
 
 export interface MotionConfig {
   acceleration: number
@@ -84,7 +85,6 @@ export function applyKnockback(entity: Entity, direction: THREE.Vector3, strengt
 export function resolveEnemySeparation(): void {
   const list = enemies.entities
   if (list.length < 2) return
-
   const radius = MOTION_CONFIG.separationRadius
   const radiusSq = radius * radius
   const maxNeighbors = list.length > 800 ? 4 : 8
@@ -93,7 +93,6 @@ export function resolveEnemySeparation(): void {
     const a = list[i]
     if (a.dead) continue
     let neighbors = 0
-
     for (let j = Math.max(0, i - 12); j < Math.min(list.length, i + 13) && neighbors < maxNeighbors; j++) {
       if (i === j) continue
       const b = list[j]
@@ -102,7 +101,6 @@ export function resolveEnemySeparation(): void {
       offset.y = 0
       const d2 = offset.lengthSq()
       if (d2 <= 1e-6 || d2 > radiusSq) continue
-
       const d = Math.sqrt(d2)
       const push = (radius - d) / radius
       offset.multiplyScalar((push * MOTION_CONFIG.separationStrength) / d)
@@ -136,6 +134,7 @@ function sanitizeEntity(entity: Entity): void {
 
 function tickMotion(dt: number): void {
   const safeDt = Math.min(0.05, Math.max(0.001, dt))
+  stepRigidBodyContacts(safeDt)
   resolveEnemySeparation()
 
   const player = getPlayer()
@@ -158,7 +157,7 @@ export function startMotionRuntime() {
   last = performance.now()
   const loop = (now: number) => {
     if (!running) return
-    tickMotion((now - last) / 1000)
+    tickMotion(Math.min(0.05, Math.max(0.001, (now - last) / 1000)))
     last = now
     frame = window.requestAnimationFrame(loop)
   }
