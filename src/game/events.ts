@@ -24,6 +24,7 @@ export type GameplayEventMap = {
   'arena:biome': { biome: string; hazard: string; wave: number }
   'achievement:unlock': { id: string; title: string }
   'performance:pressure': { pressure: number; fps: number }
+  'simulation:tick': { dt: number; time: number; steps: number }
   'runtime:error': { system: string; message: string }
 }
 
