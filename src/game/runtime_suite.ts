@@ -4,6 +4,8 @@ import { resetMegaSystemsV2, startMegaSystemsV2 } from './mega_systems_v2'
 import { resetMegaCompletion, startMegaCompletion } from './mega_completion'
 import { resetCombatPolish, startCombatPolish } from './combat_polish'
 import { resetRuntimeSafety, startRuntimeSafety } from './runtime_safety'
+import { resetProgressionRuntime, startProgressionRuntime } from './progression_runtime'
+import { resetEvents } from './events'
 
 type Stop = () => void
 
@@ -20,13 +22,14 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'mega-completion', start: startMegaCompletion, reset: resetMegaCompletion },
   { name: 'combat-polish', start: startCombatPolish, reset: resetCombatPolish },
   { name: 'runtime-safety', start: startRuntimeSafety, reset: resetRuntimeSafety },
+  { name: 'progression', start: startProgressionRuntime, reset: resetProgressionRuntime },
 ]
 
 let mounted = false
 let stops: Stop[] = []
 
 function report(name: string, error: unknown): void {
-  console.error(`[ANATHEMA] runtime '${name}' devre dışı bırakıldı`, error)
+  console.error(`[ANATEMA] runtime '${name}' devre dışı bırakıldı`, error)
 }
 
 export function startRuntimeSuite(): Stop {
@@ -67,6 +70,7 @@ export function stopRuntimeSuite(): void {
 }
 
 export function resetRuntimeSuite(): void {
+  resetEvents()
   for (const runtime of RUNTIMES) {
     try {
       runtime.reset()
