@@ -22,19 +22,16 @@ import {
   arrowInterval,
   rollDamage,
 } from '../game/abilities'
-
-/*
- * KÜL OKLARI — otomatik nişan alan okçu sistemi.
- * En yakın düşmana doğru salvo ateşler; mermiler tek instancedMesh.
- * Vuruş / ölüm / kademe ilerlemesi burada işlenir (hepsi mutatif ECS).
- */
+import { SpatialHash } from '../game/spatial'
 
 const MAX_BULLETS = 320
 const WEAPON_RANGE = 22
-const SLASH_RANGE = 3.4 /* büyük kılıç erişimi */
+const SLASH_RANGE = 3.4
 const ARC_POOL = 10
+const COLLISION_RADIUS = 1.45
 
 const _origin = new THREE.Vector3()
+const weaponSpatial = new SpatialHash(2.6)
 
 type Arc = { life: number; max: number }
 
@@ -44,6 +41,7 @@ export default function Weapons() {
   const slashTimer = useRef(0.5)
   const arcRefs = useRef<(THREE.Group | null)[]>([])
   const arcs = useRef<Arc[]>(Array.from({ length: ARC_POOL }, () => ({ life: 0, max: 0.26 })))
+  const lastGridTime = useRef(-Infinity)
 
   const { geo, mat } = useMemo(
     () => ({
@@ -84,22 +82,14 @@ export default function Weapons() {
     const playing = gameState.phase === 'playing'
 
     if (playing && player) {
+      const enemyList = enemies.entities
+      // One O(N) rebuild feeds all local weapon queries for this frame.
+      weaponSpatial.build(enemyList)
+      lastGridTime.current = t
+
       /* ---- en yakın ruh (kılıç da oklar da bunu kullanır) ---- */
-      let best: Entity | null = null
-      let bestD2 = WEAPON_RANGE * WEAPON_RANGE
-      {
-        const el = enemies.entities
-        for (let i = 0; i < el.length; i++) {
-          const e = el[i]
-          const dx = e.position.x - player.position.x
-          const dz = e.position.z - player.position.z
-          const d2 = dx * dx + dz * dz
-          if (d2 < bestD2) {
-            bestD2 = d2
-            best = e
-          }
-        }
-      }
+      let best: Entity | null = weaponSpatial.nearest(player.position, WEAPON_RANGE, enemyList) ?? null
+      let bestD2 = best ? best.position.distanceToSquared(player.position) : Infinity
 
       /* ---- BÜYÜK KILIÇ: otomatik kavisli savuruş ---- */
       slashTimer.current -= dt
@@ -116,15 +106,14 @@ export default function Weapons() {
           gameState.slashAnim = 1
 
           const R2 = SLASH_RANGE * SLASH_RANGE
-          const el = enemies.entities
-          for (let i = 0; i < el.length; i++) {
-            const e = el[i]
+          for (let i = 0; i < enemyList.length; i++) {
+            const e = enemyList[i]
             if (e.dead) continue
             const ex = e.position.x - player.position.x
             const ez = e.position.z - player.position.z
             const ed2 = ex * ex + ez * ez
             if (ed2 < R2) {
-              const roll = rollDamage(swordDamage(), player) /* ağır hasar + kritik */
+              const roll = rollDamage(swordDamage(), player)
               e.health -= Math.max(2, roll.value - e.armor)
               e.lastDmg = roll.value
               e.lastCrit = roll.crit
@@ -141,7 +130,6 @@ export default function Weapons() {
             }
           }
 
-          /* kavis efekti */
           for (let i = 0; i < ARC_POOL; i++) {
             if (arcs.current[i].life <= 0) {
               arcs.current[i].life = arcs.current[i].max
@@ -200,10 +188,9 @@ export default function Weapons() {
         }
       }
 
-      /* ---- mermi hareketi + çarpışma ---- */
+      /* ---- mermi hareketi + spatial çarpışma ---- */
       tmp.removeBullets.length = 0
       const bl = bullets.entities
-      const el = enemies.entities
 
       for (let i = 0; i < bl.length; i++) {
         const b = bl[i]
@@ -215,30 +202,26 @@ export default function Weapons() {
         b.position.addScaledVector(b.velocity, dt)
 
         let spent = false
-        for (let j = 0; j < el.length; j++) {
-          const e = el[j]
-          if (e.dead) continue
+        weaponSpatial.forEachNearby(b.position, COLLISION_RADIUS, enemyList, (e) => {
+          if (spent || e.dead) return
           const dx = e.position.x - b.position.x
           const dz = e.position.z - b.position.z
           const rr = e.radius + b.radius
-          if (dx * dx + dz * dz < rr * rr) {
-            const dmg = Math.max(1, (b.damage ?? 10) - e.armor)
-            e.health -= dmg
-            e.lastDmg = dmg
-            e.lastCrit = false
-            e.hitFlash = 1
-            e.velocity.addScaledVector(b.velocity, 0.09)
-            sfx.hit()
-            spawnBurst(b.position, 0xffa14d, 3, 3, 0.35)
-            b.pierce = (b.pierce ?? 1) - 1
-            /* ölüm bayrağı: temizlik + skor sürü sisteminde yapılır */
-            if (e.health <= 0 && !e.dead) e.dead = true
-            if (b.pierce <= 0) {
-              spent = true
-              break
-            }
-          }
-        }
+          if (dx * dx + dz * dz >= rr * rr) return
+
+          const dmg = Math.max(1, (b.damage ?? 10) - e.armor)
+          e.health -= dmg
+          e.lastDmg = dmg
+          e.lastCrit = false
+          e.hitFlash = 1
+          e.velocity.addScaledVector(b.velocity, 0.09)
+          sfx.hit()
+          spawnBurst(b.position, 0xffa14d, 3, 3, 0.35)
+          b.pierce = (b.pierce ?? 1) - 1
+          if (e.health <= 0 && !e.dead) e.dead = true
+          if (b.pierce <= 0) spent = true
+        })
+
         if (spent) tmp.removeBullets.push(b)
       }
 
@@ -247,7 +230,6 @@ export default function Weapons() {
       }
     }
 
-    /* ---- GPU'ya yaz ---- */
     const bl = bullets.entities
     const n = Math.min(bl.length, MAX_BULLETS)
     for (let i = 0; i < n; i++) {
@@ -262,7 +244,6 @@ export default function Weapons() {
     mesh.count = n
     mesh.instanceMatrix.needsUpdate = true
 
-    /* ---- savuruş kavisleri ---- */
     for (let i = 0; i < ARC_POOL; i++) {
       const a = arcs.current[i]
       const g = arcRefs.current[i]
@@ -287,7 +268,6 @@ export default function Weapons() {
         args={[geo, mat, MAX_BULLETS]}
         frustumCulled={false}
       />
-      {/* savuruş kavisleri */}
       {Array.from({ length: ARC_POOL }, (_, i) => (
         <group
           key={i}
