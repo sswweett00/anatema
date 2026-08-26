@@ -1,5 +1,4 @@
 import { resetRunDirector, startRunDirector } from './mechanics'
-import { resetMegaSystemsV2, startMegaSystemsV2 } from './mega_systems_v2'
 import { resetMegaCompletion, startMegaCompletion } from './mega_completion'
 import { resetCombatPolish, startCombatPolish } from './combat_polish'
 import { resetProgressionRuntime, startProgressionRuntime } from './progression_runtime'
@@ -21,7 +20,6 @@ import { resetAbilityPassiveCompletion, startAbilityPassiveCompletion } from './
 import { resetQualityRuntime, startQualityRuntime } from './quality_runtime'
 import { resetRunCheckpoint, startRunCheckpoint } from './run_checkpoint'
 import { resetCheckpointPersistence, startCheckpointPersistence } from './checkpoint_persistence'
-import { resetCombatDirectorV2, startCombatDirectorV2 } from './combat_director_v2'
 import { resetEnemyBehaviorRuntime, startEnemyBehaviorRuntime } from './enemy_behavior_runtime'
 import { resetSimulationClock, startSimulationClock } from './simulation_clock'
 import { resetBiomeRuntime, startBiomeRuntime } from './biome_runtime'
@@ -31,7 +29,10 @@ import { resetMetaProgression, startMetaProgression } from './meta_progression'
 import { resetIntegrationGuard, startIntegrationGuard } from './integration_guard'
 import { resetAbilityIntegrityGuard, startAbilityIntegrityGuard } from './ability_integrity_guard'
 import { resetAdvancedMechanicsV3, startAdvancedMechanicsV3 } from './advanced_mechanics_v3'
+import { resetAdvancedMechanicsV3Extensions, startAdvancedMechanicsV3Extensions } from './advanced_mechanics_v3_extensions'
+import { resetAdvancedMechanicsV3Refinements, startAdvancedMechanicsV3Refinements } from './advanced_mechanics_v3_refinements'
 import { resetSkillMasteryRuntimeV3, startSkillMasteryRuntimeV3 } from './skill_mastery_runtime_v3'
+import { resetCombatDirectorV3, startCombatDirectorV3 } from './combat_director_v3'
 import { validateContentContract } from './content_contract'
 
 type Stop = () => void
@@ -44,13 +45,15 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'integration-guard', start: startIntegrationGuard, reset: resetIntegrationGuard },
   { name: 'ability-integrity', start: startAbilityIntegrityGuard, reset: resetAbilityIntegrityGuard },
   { name: 'advanced-mechanics-v3', start: startAdvancedMechanicsV3, reset: resetAdvancedMechanicsV3 },
+  { name: 'advanced-mechanics-v3-extensions', start: startAdvancedMechanicsV3Extensions, reset: resetAdvancedMechanicsV3Extensions },
+  { name: 'advanced-mechanics-v3-refinements', start: startAdvancedMechanicsV3Refinements, reset: resetAdvancedMechanicsV3Refinements },
   { name: 'skill-mastery-v3', start: startSkillMasteryRuntimeV3, reset: resetSkillMasteryRuntimeV3 },
+  { name: 'combat-director-v3', start: startCombatDirectorV3, reset: resetCombatDirectorV3 },
   { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
   { name: 'input-assist', start: startInputAssist, reset: resetInputAssist },
   { name: 'motion', start: startMotionRuntime, reset: resetMotionRuntime },
   { name: 'run-director', start: startRunDirector, reset: resetRunDirector },
   { name: 'wave-director', start: startWaveDirector, reset: resetWaveDirector },
-  { name: 'mega-systems', start: startMegaSystemsV2, reset: resetMegaSystemsV2 },
   { name: 'mega-completion', start: startMegaCompletion, reset: resetMegaCompletion },
   { name: 'combat-polish', start: startCombatPolish, reset: resetCombatPolish },
   { name: 'expanded-abilities', start: startExpandedAbilityRuntime, reset: resetExpandedAbilityRuntime },
@@ -58,7 +61,6 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'ability-passive-completion', start: startAbilityPassiveCompletion, reset: resetAbilityPassiveCompletion },
   { name: 'status-effects', start: startStatusRuntime, reset: resetStatusRuntime },
   { name: 'boss-ai', start: startBossAI, reset: resetBossAI },
-  { name: 'combat-director-v2', start: startCombatDirectorV2, reset: resetCombatDirectorV2 },
   { name: 'enemy-behavior', start: startEnemyBehaviorRuntime, reset: resetEnemyBehaviorRuntime },
   { name: 'enemy-archetypes', start: startEnemyArchetypeRuntime, reset: resetEnemyArchetypeRuntime },
   { name: 'biomes', start: startBiomeRuntime, reset: resetBiomeRuntime },
