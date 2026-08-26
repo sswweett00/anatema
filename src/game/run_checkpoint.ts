@@ -1,6 +1,6 @@
 import { enemies, bullets, gameState, getPlayer, lootEntities, particles, players, world, type Entity } from '../ecs/world'
 import { abilities } from './abilities'
-import { getRunSeed } from './rng'
+import { getRunSeed, setRunSeed } from './rng'
 
 export type EntityCheckpoint = {
   archetype: 'player' | 'enemy' | 'bullet' | 'particle' | 'loot'
@@ -32,6 +32,9 @@ export type RunCheckpoint = {
   abilities: Record<string, number>
   entities: EntityCheckpoint[]
 }
+
+const MAX_CHECKPOINT_ENTITIES = 2200
+const MAX_CHECKPOINT_JSON = 2_000_000
 
 let running = false
 let lastChecksum = ''
@@ -100,6 +103,124 @@ export function getRunCheckpointChecksum(): string {
 
 export function getLastRunCheckpointChecksum(): string {
   return lastChecksum
+}
+
+function finite(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isValidEntity(entity: unknown): entity is EntityCheckpoint {
+  if (!entity || typeof entity !== 'object') return false
+  const candidate = entity as Record<string, unknown>
+  if (!['player', 'enemy', 'bullet', 'particle', 'loot'].includes(String(candidate.archetype))) return false
+  const numeric = ['x', 'y', 'z', 'vx', 'vy', 'vz', 'health', 'maxHealth', 'age', 'life', 'kind']
+  return numeric.every((key) => finite(candidate[key]))
+}
+
+export function validateRunCheckpoint(input: unknown): input is RunCheckpoint {
+  if (!input || typeof input !== 'object') return false
+  const c = input as Partial<RunCheckpoint>
+  if (c.version !== 1 || !finite(c.seed) || !Number.isInteger(c.seed)) return false
+  if (typeof c.phase !== 'string' || !finite(c.time) || !finite(c.kills) || !finite(c.level) || !finite(c.xp) || !finite(c.xpNext) || !finite(c.wave) || !finite(c.combo) || !finite(c.maxCombo)) return false
+  if (!c.abilities || typeof c.abilities !== 'object' || !Array.isArray(c.entities)) return false
+  if (c.entities.length > MAX_CHECKPOINT_ENTITIES) return false
+  for (const entity of c.entities) {
+    if (!isValidEntity(entity)) return false
+  }
+  return true
+}
+
+function clearWorld(): void {
+  for (const entity of [...world.entities]) world.remove(entity)
+}
+
+function createEntity(snapshot: EntityCheckpoint): Entity {
+  const base: Entity = {
+    position: new THREE.Vector3(snapshot.x, snapshot.y, snapshot.z),
+    velocity: new THREE.Vector3(snapshot.vx, snapshot.vy, snapshot.vz),
+    health: Math.max(0, snapshot.health),
+    maxHealth: Math.max(0.001, snapshot.maxHealth),
+    armor: 0,
+    poise: 0,
+    maxPoise: 1,
+    speed: 0,
+    radius: 0.3,
+    age: Math.max(0, snapshot.age),
+    life: Math.max(0, snapshot.life),
+    maxLife: Math.max(0.001, snapshot.life),
+  }
+  switch (snapshot.archetype) {
+    case 'player':
+      base.isPlayer = true
+      base.armor = 3
+      base.poise = 100
+      base.maxPoise = 100
+      base.speed = 5.4
+      base.radius = 0.5
+      base.dashZ = 1
+      base.facingZ = 1
+      break
+    case 'enemy':
+      base.isEnemy = true
+      base.enemyKind = Math.max(0, Math.trunc(snapshot.kind))
+      base.dead = base.health <= 0
+      base.radius = 0.42
+      break
+    case 'bullet':
+      base.isBullet = true
+      base.radius = 0.22
+      base.speed = base.velocity.length()
+      base.damage = Math.max(0, base.health)
+      base.pierce = Math.max(0, Math.trunc(snapshot.kind))
+      break
+    case 'particle':
+      base.isParticle = true
+      base.radius = 0.08
+      base.colorHex = Math.max(0, Math.min(0xffffff, Math.trunc(snapshot.kind)))
+      break
+    case 'loot':
+      base.isLoot = true
+      base.radius = 0.25
+      base.value = Math.max(0, snapshot.kind)
+      break
+  }
+  return base
+}
+
+export function restoreRunCheckpoint(input: unknown): { ok: boolean; reason?: string } {
+  if (typeof input === 'string' && input.length > MAX_CHECKPOINT_JSON) return { ok: false, reason: 'checkpoint-too-large' }
+  const checkpoint = typeof input === 'string' ? (() => {
+    try { return JSON.parse(input) as unknown } catch { return null }
+  })() : input
+
+  if (!validateRunCheckpoint(checkpoint)) return { ok: false, reason: 'invalid-checkpoint' }
+
+  clearWorld()
+  setRunSeed(checkpoint.seed)
+  gameState.phase = checkpoint.phase as typeof gameState.phase
+  gameState.time = checkpoint.time
+  gameState.kills = Math.trunc(checkpoint.kills)
+  gameState.level = Math.trunc(checkpoint.level)
+  gameState.xp = checkpoint.xp
+  gameState.xpNext = Math.max(1, checkpoint.xpNext)
+  gameState.wave = Math.trunc(checkpoint.wave)
+  gameState.combo = Math.trunc(checkpoint.combo)
+  gameState.maxCombo = Math.max(gameState.combo, Math.trunc(checkpoint.maxCombo))
+
+  for (const key of Object.keys(abilities)) {
+    const value = checkpoint.abilities[key]
+    if (typeof value === 'number' && Number.isFinite(value)) abilities[key] = Math.max(0, Math.trunc(value))
+  }
+
+  for (const snapshot of checkpoint.entities) world.add(createEntity(snapshot))
+
+  if (!getPlayer()) world.add(createEntity({
+    archetype: 'player', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0,
+    health: 100, maxHealth: 100, age: 0, life: 0, kind: 0,
+  }))
+
+  lastChecksum = checksumCheckpoint(captureRunCheckpoint())
+  return { ok: true }
 }
 
 export function startRunCheckpoint(): () => void {
