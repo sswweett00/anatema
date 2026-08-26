@@ -1,5 +1,6 @@
 import { World } from 'miniplex'
 import * as THREE from 'three'
+import { getRunSeed, nextRandom, setRunSeed } from '../game/rng'
 
 /* ------------------------------------------------------------------ */
 /*  ANATHEMA — ECS çekirdeği. Tüm oyun durumu burada MUTATIF yaşar;    */
@@ -135,13 +136,13 @@ export function spawnEnemy(around: THREE.Vector3) {
   const wGob = 5
   const wSkel = w >= 2 ? 3 + w * 0.25 : 0
   const wSlime = w >= 4 ? 2 + w * 0.3 : 0
-  const roll = Math.random() * (wGob + wSkel + wSlime)
+  const roll = nextRandom() * (wGob + wSkel + wSlime)
   const kind = roll < wGob ? 0 : roll < wGob + wSkel ? 1 : 2
   const k = ENEMY_KINDS[kind]
   const hpMul = 1 + (t / 150) * 0.35
   const dmgMul = 1 + (t / 300) * 0.45
-  const ang = Math.random() * Math.PI * 2
-  const dist = 24 + Math.random() * 18
+  const ang = nextRandom() * Math.PI * 2
+  const dist = 24 + nextRandom() * 18
   const e: Entity = {
     position: new THREE.Vector3(around.x + Math.cos(ang) * dist, 0, around.z + Math.sin(ang) * dist),
     velocity: new THREE.Vector3(),
@@ -150,14 +151,14 @@ export function spawnEnemy(around: THREE.Vector3) {
     armor: kind === 2 ? 4 : kind === 1 ? 1 : 0,
     poise: 0,
     maxPoise: 1,
-    speed: k.speed * (0.85 + Math.random() * 0.3),
+    speed: k.speed * (0.85 + nextRandom() * 0.3),
     radius: k.radius,
     isEnemy: true,
     enemyKind: kind,
-    scale: k.scale * (0.9 + Math.random() * 0.25),
-    phase: Math.random() * Math.PI * 2,
+    scale: k.scale * (0.9 + nextRandom() * 0.25),
+    phase: nextRandom() * Math.PI * 2,
     hitFlash: 0,
-    attackCooldown: Math.random() * 0.4,
+    attackCooldown: nextRandom() * 0.4,
     damage: k.dmg * dmgMul,
     dead: false,
     age: 0,
@@ -218,7 +219,7 @@ export function spawnBullet(origin: THREE.Vector3, dx: number, dz: number, damag
     pierce,
     life: 1.4,
     maxLife: 1.4,
-    spin: Math.random() * Math.PI * 2,
+    spin: nextRandom() * Math.PI * 2,
   }
   world.add(b)
 }
@@ -230,12 +231,12 @@ const _pv = new THREE.Vector3()
 export function spawnBurst(pos: THREE.Vector3, colorHex: number, count: number, power = 4, life = 0.6) {
   if (particles.entities.length > 460) return
   for (let i = 0; i < count; i++) {
-    const a = Math.random() * Math.PI * 2
-    const up = 1.5 + Math.random() * 3.5
-    _pv.set(Math.cos(a) * (0.4 + Math.random()), up, Math.sin(a) * (0.4 + Math.random()))
-    const l = life * (0.6 + Math.random() * 0.8)
+    const a = nextRandom() * Math.PI * 2
+    const up = 1.5 + nextRandom() * 3.5
+    _pv.set(Math.cos(a) * (0.4 + nextRandom()), up, Math.sin(a) * (0.4 + nextRandom()))
+    const l = life * (0.6 + nextRandom() * 0.8)
     const p: Entity = {
-      position: new THREE.Vector3(pos.x + (Math.random() - 0.5) * 0.3, pos.y + 0.35 + Math.random() * 0.35, pos.z + (Math.random() - 0.5) * 0.3),
+      position: new THREE.Vector3(pos.x + (nextRandom() - 0.5) * 0.3, pos.y + 0.35 + nextRandom() * 0.35, pos.z + (nextRandom() - 0.5) * 0.3),
       velocity: _pv.clone().multiplyScalar(power * 0.35),
       health: 1,
       maxHealth: 1,
@@ -243,12 +244,12 @@ export function spawnBurst(pos: THREE.Vector3, colorHex: number, count: number, 
       poise: 0,
       maxPoise: 1,
       speed: 0,
-      radius: 0.05 + Math.random() * 0.09,
+      radius: 0.05 + nextRandom() * 0.09,
       isParticle: true,
       life: l,
       maxLife: l,
       colorHex,
-      spin: Math.random() * Math.PI * 2,
+      spin: nextRandom() * Math.PI * 2,
     }
     world.add(p)
   }
@@ -256,10 +257,10 @@ export function spawnBurst(pos: THREE.Vector3, colorHex: number, count: number, 
 
 export function spawnWisp(pos: THREE.Vector3, colorHex: number) {
   if (particles.entities.length > 470) return
-  const l = 1.1 + Math.random() * 0.5
+  const l = 1.1 + nextRandom() * 0.5
   const p: Entity = {
-    position: new THREE.Vector3(pos.x + (Math.random() - 0.5) * 0.4, pos.y + 0.4 + Math.random() * 0.5, pos.z + (Math.random() - 0.5) * 0.4),
-    velocity: new THREE.Vector3((Math.random() - 0.5) * 0.7, 2.2 + Math.random(), (Math.random() - 0.5) * 0.7),
+    position: new THREE.Vector3(pos.x + (nextRandom() - 0.5) * 0.4, pos.y + 0.4 + nextRandom() * 0.5, pos.z + (nextRandom() - 0.5) * 0.4),
+    velocity: new THREE.Vector3((nextRandom() - 0.5) * 0.7, 2.2 + nextRandom(), (nextRandom() - 0.5) * 0.7),
     health: 1,
     maxHealth: 1,
     armor: 0,
@@ -280,6 +281,8 @@ export function spawnWisp(pos: THREE.Vector3, colorHex: number) {
 /* ---------------- koşu sıfırlama ---------------- */
 
 export function resetRun() {
+  // Keep the same seed for a true replayable run: all gameplay randomness restarts identically.
+  setRunSeed(getRunSeed())
   for (const e of [...enemies.entities]) world.remove(e)
   for (const e of [...bullets.entities]) world.remove(e)
   for (const e of [...particles.entities]) world.remove(e)
