@@ -7,9 +7,11 @@ import { resetAbilities } from './game/abilities'
 import { loadProfile, recordRun, type Profile, type QualityPreset } from './game/profile'
 import { PerformanceController, type PerformanceSnapshot } from './game/performance'
 import { resetRunDirector, startRunDirector } from './game/mechanics'
+import { resetAdvancedRuntime, startAdvancedRuntime } from './game/advanced_runtime'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
+import AdvancedVFX from './components/AdvancedVFX'
 import EnemySwarm from './components/EnemySwarm'
 import Weapons from './components/Weapons'
 import ActiveAbilities from './components/ActiveAbilities'
@@ -51,6 +53,7 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
       <Glows />
       <Player />
       <AbilityVFX />
+      <AdvancedVFX />
       <EnemySwarm />
       <Weapons />
       <ActiveAbilities />
@@ -102,8 +105,12 @@ export default function App() {
   const runRecorded = useRef(false)
 
   useEffect(() => {
-    const stop = startRunDirector()
-    return stop
+    const stopDirector = startRunDirector()
+    const stopAdvanced = startAdvancedRuntime()
+    return () => {
+      stopDirector()
+      stopAdvanced()
+    }
   }, [])
 
   useEffect(() => onPhase((next) => {
@@ -149,6 +156,7 @@ export default function App() {
       console.warn('Ses başlatılamadı (oyun sessiz devam eder):', err)
     }
     resetRunDirector()
+    resetAdvancedRuntime()
     resetAbilities()
     resetRun()
     sfx.start()
