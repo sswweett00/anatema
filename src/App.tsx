@@ -14,6 +14,7 @@ import { resetRuntimeSuite, startRuntimeSuite } from './game/runtime_suite'
 import { resetGameServices } from './game/game_services'
 import { saveRunSnapshot } from './game/run_snapshot'
 import { CameraRig } from './game/camera_rig'
+import { resolveRenderQuality } from './game/render_quality'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
@@ -207,10 +208,10 @@ export default function App() {
     setPhase('playing')
   }, [])
 
+  const renderQuality = resolveRenderQuality(quality, performance.pressure)
   const baseDpr = Number.isFinite(performance.recommendedDpr) ? performance.recommendedDpr : 1
-  const dprMax = quality === 'high' ? 1.5 : quality === 'balanced' ? 1.25 : 1.1
-  const dprValue = Math.min(dprMax, Math.max(0.75, baseDpr))
-  const dpr: [number, number] = [dprValue * 0.9, dprValue]
+  const dprValue = Math.min(renderQuality.dprMax, Math.max(renderQuality.dprMin, baseDpr))
+  const dpr: [number, number] = [dprValue * 0.94, dprValue]
 
   return (
     <EmberBoundary>
@@ -219,16 +220,19 @@ export default function App() {
           shadows="soft"
           dpr={dpr}
           gl={{
-            antialias: true,
+            antialias: renderQuality.antialias,
             alpha: false,
+            depth: true,
+            stencil: false,
+            preserveDrawingBuffer: false,
             powerPreference: 'high-performance',
             toneMapping: THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 1.12,
+            toneMappingExposure: renderQuality.exposure,
           }}
           onCreated={({ gl }) => {
             gl.outputColorSpace = THREE.SRGBColorSpace
             gl.shadowMap.enabled = true
-            gl.shadowMap.type = THREE.PCFSoftShadowMap
+            gl.shadowMap.type = renderQuality.shadowType
           }}
         >
           <Scene quality={quality} onPerformance={setPerformance} />
