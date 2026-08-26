@@ -14,6 +14,7 @@ import { resetWaveDirector, startWaveDirector } from './wave_director'
 import { resetInputAssist, startInputAssist } from './input_assist'
 import { resetPerformanceGovernor } from './performance_governor'
 import { resetGameServices, startGameServices } from './game_services'
+import { resetMotionRuntime, startMotionRuntime } from './motion_runtime'
 
 type Stop = () => void
 type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
@@ -21,6 +22,7 @@ type RuntimeSpec = { name: string; start: () => Stop; reset: () => void }
 const RUNTIMES: RuntimeSpec[] = [
   { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
   { name: 'input-assist', start: startInputAssist, reset: resetInputAssist },
+  { name: 'motion', start: startMotionRuntime, reset: resetMotionRuntime },
   { name: 'run-director', start: startRunDirector, reset: resetRunDirector },
   { name: 'wave-director', start: startWaveDirector, reset: resetWaveDirector },
   { name: 'advanced-combat', start: startAdvancedRuntime, reset: resetAdvancedRuntime },
