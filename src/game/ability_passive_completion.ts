@@ -48,10 +48,13 @@ function tick(dt: number) {
     if (Number.isFinite(forgeRate)) player.health = Math.min(player.maxHealth, player.health + forgeRate * dt)
   }
 
-  if (abilities.fortunesfavor > 0 && gameState.kills > 0) {
-    const milestoneIndex = Math.floor(gameState.kills / 25)
-    if (milestoneIndex > fortuneClaims) {
-      fortuneClaims = milestoneIndex
+  const kills = Number.isFinite(gameState.kills) ? Math.max(0, Math.floor(gameState.kills)) : 0
+  const previousKills = lastKills
+
+  if (abilities.fortunesfavor > 0 && kills > previousKills) {
+    const reachedMilestone = Math.floor(kills / 25)
+    while (fortuneClaims < reachedMilestone) {
+      fortuneClaims += 1
       const bonus = 1 + Math.min(0.5, abilities.fortunesfavor * 0.035)
       gameState.xp = Math.max(0, gameState.xp + Math.max(1, Math.floor(2 * bonus)))
       events.emit('loot:acquire', {
@@ -61,10 +64,10 @@ function tick(dt: number) {
     }
   }
 
-  if (abilities.soulharvest > 0 && gameState.kills > lastKills && gameState.kills % 25 === 0) {
-    const milestoneIndex = gameState.kills / 25
-    if (milestoneIndex > harvestClaims) {
-      harvestClaims = milestoneIndex
+  if (abilities.soulharvest > 0 && kills > previousKills) {
+    const reachedMilestone = Math.floor(kills / 25)
+    while (harvestClaims < reachedMilestone) {
+      harvestClaims += 1
       player.health = Math.min(player.maxHealth, player.health + 10 + abilities.soulharvest * 3)
       player.poise = Math.min(player.maxPoise, player.poise + 20 + abilities.soulharvest * 4)
       gameState.combo = Math.min(999, Math.max(0, gameState.combo) + 3 + abilities.soulharvest)
@@ -76,7 +79,7 @@ function tick(dt: number) {
     }
   }
 
-  lastKills = gameState.kills
+  lastKills = kills
 }
 
 export function startAbilityPassiveCompletion() {
