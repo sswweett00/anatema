@@ -10,6 +10,7 @@ import { resetRunDirector, startRunDirector } from './game/mechanics'
 import { resetAdvancedRuntime, startAdvancedRuntime } from './game/advanced_runtime'
 import { resetMegaSystemsV2, startMegaSystemsV2 } from './game/mega_systems_v2'
 import { resetMegaCompletion, startMegaCompletion } from './game/mega_completion'
+import { resetCombatPolish, startCombatPolish } from './game/combat_polish'
 import Environment from './components/Environment'
 import Player from './components/Player'
 import AbilityVFX from './components/AbilityVFX'
@@ -70,7 +71,7 @@ class EmberBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
 
   componentDidCatch(err: unknown) {
-    console.error('ANATHEMA — beklenmedik hata:', err)
+    console.error('ANATEMA — beklenmedik hata:', err)
   }
 
   render() {
@@ -110,6 +111,7 @@ export default function App() {
       startAdvancedRuntime(),
       startMegaSystemsV2(),
       startMegaCompletion(),
+      startCombatPolish(),
     ]
     return () => stops.forEach((stop) => stop())
   }, [])
@@ -160,6 +162,7 @@ export default function App() {
     resetAdvancedRuntime()
     resetMegaSystemsV2()
     resetMegaCompletion()
+    resetCombatPolish()
     resetAbilities()
     resetRun()
     sfx.start()
