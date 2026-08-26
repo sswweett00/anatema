@@ -1,5 +1,4 @@
 import { resetRunDirector, startRunDirector } from './mechanics'
-import { resetMegaCompletion, startMegaCompletion } from './mega_completion'
 import { resetCombatPolish, startCombatPolish } from './combat_polish'
 import { resetProgressionRuntime, startProgressionRuntime } from './progression_runtime'
 import { resetRuntimeSafety, startRuntimeSafety } from './runtime_safety'
@@ -54,7 +53,6 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'motion', start: startMotionRuntime, reset: resetMotionRuntime },
   { name: 'run-director', start: startRunDirector, reset: resetRunDirector },
   { name: 'wave-director', start: startWaveDirector, reset: resetWaveDirector },
-  { name: 'mega-completion', start: startMegaCompletion, reset: resetMegaCompletion },
   { name: 'combat-polish', start: startCombatPolish, reset: resetCombatPolish },
   { name: 'expanded-abilities', start: startExpandedAbilityRuntime, reset: resetExpandedAbilityRuntime },
   { name: 'ability-activation', start: startAbilityActivationRuntime, reset: resetAbilityActivationRuntime },
