@@ -6,8 +6,8 @@ import { softDotTexture, softRingTexture } from '../game/textures'
 
 /* ------------------------------------------------------------------ */
 /*  DÜŞMAN STATÜ 3D GÖRSEL EFEKTLERİ                                  */
- * Yanma: yükselen közler + zemin alev halkası
- * Ayaz/yavaşlama: dönen buz kristalleri + frost halkası
+/*  Yanma: yükselen közler + zemin alev halkası                       */
+/*  Ayaz/yavaşlama: dönen buz kristalleri + frost halkası             */
 /* ------------------------------------------------------------------ */
 
 const MAX_STATUS_INSTANCES = 600

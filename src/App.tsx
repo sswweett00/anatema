@@ -77,6 +77,7 @@ const Scene = memo(function Scene({ quality, onPerformance }: { quality: Quality
       lastReport.current += safeDt
 
       const camera = state.camera as THREE.OrthographicCamera
+      gameState.cam = camera
       const player = getPlayer()
       if (lastPhase.current !== gameState.phase) {
         lastPhase.current = gameState.phase

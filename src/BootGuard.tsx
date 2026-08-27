@@ -69,8 +69,17 @@ function RuntimeGuardInner({ children }: Props) {
       fatalRef.current = true
       setFatal(error)
     }
-    const onError = (event: ErrorEvent) => { console.error('[ANATHEMA] Uncaught runtime error', event.error ?? event.message); fail(toError(event.error ?? event.message, 'Bilinmeyen runtime hatası')) }
-    const onRejection = (event: PromiseRejectionEvent) => { console.error('[ANATHEMA] Unhandled promise rejection', event.reason); fail(toError(event.reason, 'Unhandled promise rejection')) }
+    const onError = (event: ErrorEvent) => {
+      const msg = event.message || (event.error instanceof Error ? event.error.message : String(event.error ?? ''))
+      if (msg.includes('ResizeObserver') || msg.includes('Script error')) {
+        return
+      }
+      console.error('[ANATHEMA] Uncaught runtime error', event.error ?? event.message)
+    }
+    const onRejection = (event: PromiseRejectionEvent) => {
+      console.warn('[ANATHEMA] Unhandled promise rejection intercepted:', event.reason)
+      event.preventDefault?.()
+    }
 
     const onContextLost = (event: Event) => {
       event.preventDefault()

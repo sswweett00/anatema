@@ -18,18 +18,18 @@ export interface CameraRigConfig {
 }
 
 export const CAMERA_RIG_CONFIG: CameraRigConfig = {
-  basePosition: [26, 26, 26],
+  basePosition: [0, 26, 18],
   baseZoom: 42,
   minZoom: 36,
   maxZoom: 47,
-  followSharpness: 7.2,
-  lookSharpness: 9.2,
-  velocityLookAhead: 0.34,
-  speedZoom: 2.7,
-  pressureZoom: 2.2,
-  maxLookAhead: 3.5,
-  shakePosition: 0.2,
-  shakeRotation: 0.014,
+  followSharpness: 8.5,
+  lookSharpness: 10.0,
+  velocityLookAhead: 0.2,
+  speedZoom: 1.5,
+  pressureZoom: 1.2,
+  maxLookAhead: 2.2,
+  shakePosition: 0,
+  shakeRotation: 0,
   bounds: 185,
 }
 
@@ -60,13 +60,15 @@ export class CameraRig {
       camera.lookAt(0, 0, 0)
       if (camera instanceof THREE.OrthographicCamera) camera.zoom = CAMERA_RIG_CONFIG.baseZoom
       camera.rotation.set(0, 0, 0)
-      camera.updateProjectionMatrix()
+      if (camera instanceof THREE.PerspectiveCamera || camera instanceof THREE.OrthographicCamera) {
+        camera.updateProjectionMatrix()
+      }
     }
   }
 
-  addImpact(amount: number): void {
-    if (!Number.isFinite(amount)) return
-    this.impact = Math.min(1, Math.max(this.impact, Math.max(0, amount)))
+  addImpact(_amount: number): void {
+    // Screen shake disabled per user preference
+    this.impact = 0
   }
 
   update(camera: THREE.Camera, player: Entity | undefined, dt: number, pressure = 0): void {
@@ -86,48 +88,40 @@ export class CameraRig {
     const speed = Math.min(1, Math.hypot(vx, vz) / 9)
     this.currentSpeed = damp(this.currentSpeed, speed, 7.5, safeDt)
 
-    const lookAheadX = THREE.MathUtils.clamp(vx * CAMERA_RIG_CONFIG.velocityLookAhead, -CAMERA_RIG_CONFIG.maxLookAhead, CAMERA_RIG_CONFIG.maxLookAhead)
-    const lookAheadZ = THREE.MathUtils.clamp(vz * CAMERA_RIG_CONFIG.velocityLookAhead, -CAMERA_RIG_CONFIG.maxLookAhead, CAMERA_RIG_CONFIG.maxLookAhead)
+    const targetLookX = THREE.MathUtils.clamp(vx * CAMERA_RIG_CONFIG.velocityLookAhead, -CAMERA_RIG_CONFIG.maxLookAhead, CAMERA_RIG_CONFIG.maxLookAhead)
+    const targetLookZ = THREE.MathUtils.clamp(vz * CAMERA_RIG_CONFIG.velocityLookAhead, -CAMERA_RIG_CONFIG.maxLookAhead, CAMERA_RIG_CONFIG.maxLookAhead)
     target.set(px, 0, pz)
-    lookTarget.set(px + lookAheadX, 0, pz + lookAheadZ)
+    lookTarget.set(px + targetLookX, 0, pz + targetLookZ)
 
-    const horizontalPressure = THREE.MathUtils.clamp(Number.isFinite(pressure) ? pressure : 0, 0, 1)
     const zoomTarget = CAMERA_RIG_CONFIG.baseZoom
-      - this.currentSpeed * CAMERA_RIG_CONFIG.speedZoom
-      - horizontalPressure * CAMERA_RIG_CONFIG.pressureZoom
 
-    this.desiredPosition.set(26 + vx * 0.08, 26 + this.currentSpeed * 0.62, 26 + vz * 0.08)
-    this.desiredPosition.x += (target.x - this.desiredPosition.x) * 0.032
-    this.desiredPosition.z += (target.z - this.desiredPosition.z) * 0.032
+    this.desiredPosition.set(px, 26, pz + 18)
 
     if (!this.initialized) {
       camera.position.copy(this.desiredPosition)
-      this.desiredLook.copy(lookTarget)
+      this.desiredLook.copy(target)
       this.initialized = true
     } else {
       camera.position.lerp(this.desiredPosition, 1 - Math.exp(-CAMERA_RIG_CONFIG.followSharpness * safeDt))
-      this.desiredLook.lerp(lookTarget, 1 - Math.exp(-CAMERA_RIG_CONFIG.lookSharpness * safeDt))
+      this.desiredLook.lerp(target, 1 - Math.exp(-CAMERA_RIG_CONFIG.lookSharpness * safeDt))
     }
 
-    this.impact = damp(this.impact, 0, 12, safeDt)
-    const t = this.visualTime
-    const noiseX = Math.sin(t * 37.1) * Math.cos(t * 19.7)
-    const noiseZ = Math.sin(t * 29.3 + 1.7) * Math.cos(t * 17.2)
-    shake.set(noiseX, 0, noiseZ).multiplyScalar(this.impact * CAMERA_RIG_CONFIG.shakePosition)
-    camera.position.add(shake)
+    this.impact = 0
     camera.lookAt(this.desiredLook)
 
     if (camera instanceof THREE.OrthographicCamera) {
+      const oldZoom = camera.zoom
       camera.zoom = damp(
         camera.zoom,
-        THREE.MathUtils.clamp(zoomTarget, CAMERA_RIG_CONFIG.minZoom, CAMERA_RIG_CONFIG.maxZoom),
+        zoomTarget,
         6.2,
         safeDt,
       )
-      camera.updateProjectionMatrix()
+      if (Math.abs(camera.zoom - oldZoom) > 0.0001) {
+        camera.updateProjectionMatrix()
+      }
     }
 
-    euler.set(0, 0, this.impact * CAMERA_RIG_CONFIG.shakeRotation * Math.sin(t * 31.3))
-    camera.rotation.z = euler.z
+    camera.rotation.z = 0
   }
 }

@@ -15,9 +15,9 @@ let unsubscribeTick: (() => void) | undefined
 const cooldown = (id: keyof typeof abilities, base: number, per: number, floor = 0.7) =>
   Math.max(floor, (base - abilities[id] * per) * (1 - Math.min(0.45, abilities.celerity * 0.012 + abilities.warlord * 0.01)))
 
-function finite(v: number, fallback = 0): number { return Number.isFinite(v) ? v : fallback }
+function finite(v: number | undefined | null, fallback = 0): number { return typeof v === 'number' && Number.isFinite(v) ? v : fallback }
 
-function damage(entity: Entity, base: number, player: Entity, element: 'physical'|'fire'|'ice'|'shock'|'poison'|'void' = 'physical'): number {
+function damage(entity: Entity, base: number, player: Entity, element: 'physical'|'fire'|'ice'|'shock'|'poison'|'void'|'bleed' = 'physical'): number {
   if (entity.dead) return 0
   const roll = rollDamage(base, player)
   const amount = Math.max(1, finite(roll.value) - finite(entity.armor))

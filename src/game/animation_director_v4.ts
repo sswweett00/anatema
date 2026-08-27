@@ -233,15 +233,15 @@ export function startAnimationDirectorV4(): Stop {
   state.running = true
   state.time = 0
   state.lastGameTime = gameState.time
-  unsubscribe = onSimulationTick(tick)
+  state.unsubscribe = onSimulationTick(tick)
   return stopAnimationDirectorV4
 }
 
 export function stopAnimationDirectorV4(): void {
   if (!state.running) return
   state.running = false
-  unsubscribe?.()
-  unsubscribe = undefined
+  state.unsubscribe?.()
+  state.unsubscribe = undefined
 }
 
 export function resetAnimationDirectorV4(): void {

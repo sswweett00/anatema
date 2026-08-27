@@ -31,9 +31,9 @@ function finiteInt(value: unknown, fallback = 0): number {
 }
 
 export function migrateSave(input: unknown): SaveData {
-  const value = input && typeof input === 'object' ? input as Partial<SaveV1 & SaveV2> : {}
-  const profile = value.profile ?? {}
-  const settings = value.settings ?? {}
+  const value = (input && typeof input === 'object' ? input : {}) as Record<string, any>
+  const profile = (value.profile ?? {}) as Partial<SaveV1['profile']>
+  const settings = (value.settings ?? {}) as Partial<SaveV2['settings']>
   const quality = profile.quality === 'low' || profile.quality === 'balanced' || profile.quality === 'high' || profile.quality === 'auto' ? profile.quality : 'auto'
   const reducedMotion = Boolean(profile.reducedMotion)
 

@@ -208,7 +208,7 @@ export function restoreRunCheckpoint(input: unknown): { ok: boolean; reason?: st
   gameState.combo = Math.trunc(checkpoint.combo)
   gameState.maxCombo = Math.max(gameState.combo, Math.trunc(checkpoint.maxCombo))
 
-  for (const key of Object.keys(abilities)) {
+  for (const key of Object.keys(abilities) as (keyof typeof abilities)[]) {
     const value = checkpoint.abilities[key]
     if (typeof value === 'number' && Number.isFinite(value)) abilities[key] = Math.max(0, Math.trunc(value))
   }

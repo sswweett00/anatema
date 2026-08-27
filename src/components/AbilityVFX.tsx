@@ -2,46 +2,77 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getPlayer, gameState } from '../ecs/world'
-import { abilities, ABILITIES, MEND_DEF, hasSynergy, type AbilityId } from '../game/abilities'
+import { abilities, ABILITIES, MEND_DEF, type AbilityId } from '../game/abilities'
+import { plasmaOrbTexture, magicalRuneCircleTexture } from '../game/textures'
 
-const MAX_ABILITIES = 33
-const MOTES = 128
-const TRAILS = 32
+const MAX_ABILITIES = 64
+const MOTES = 192
+const TRAILS = 36
 
 const ABILITY_PALETTE: Record<AbilityId, number> = {
-  steel: 0xffb15c,
-  arrows: 0xffd08a,
-  nova: 0xff7138,
-  orbit: 0xffa14d,
-  chain: 0x7ad7ff,
-  storm: 0xc9eaff,
-  frost: 0x8fd8ff,
-  vortex: 0xff8f47,
-  spikes: 0xd0ad80,
-  pyre: 0xff6330,
-  phantom: 0xcfe4ff,
-  venom: 0x72e089,
-  heart: 0xff5d52,
-  swift: 0xffc66f,
-  armor: 0xb8a28a,
-  crit: 0xffe8a0,
-  magnet: 0x9fddff,
-  rage: 0xd52e38,
-  vamp: 0xb32b42,
-  stone: 0x8f8070,
-  ghoststep: 0xa9a5ff,
-  ferocity: 0xf0a05a,
-  thorns: 0x8cae63,
-  laststand: 0xffefaf,
-  focus: 0x8fd2ff,
-  momentum: 0xf2b871,
-  adrenaline: 0xff6a52,
-  bulwark: 0xc7b18c,
-  greed: 0xffd15e,
-  harvest: 0x77c58a,
-  scholar: 0x7fc8ff,
-  warlord: 0xcfa1ff,
-  mend: 0x7de0a4,
+  steel: 0xffb74d,
+  arrows: 0xffd54f,
+  nova: 0xff5722,
+  orbit: 0xff9800,
+  chain: 0x00e5ff,
+  storm: 0x38bdf8,
+  frost: 0x67e8f9,
+  vortex: 0xf97316,
+  spikes: 0xd97706,
+  pyre: 0xef4444,
+  phantom: 0xa5b4fc,
+  venom: 0x22c55e,
+  heart: 0xf43f5e,
+  swift: 0xfde047,
+  armor: 0xa8a29e,
+  crit: 0xfacc15,
+  magnet: 0x38bdf8,
+  rage: 0xdc2626,
+  vamp: 0xe11d48,
+  stone: 0x78716c,
+  ghoststep: 0x818cf8,
+  ferocity: 0xfb923c,
+  thorns: 0x84cc16,
+  laststand: 0xfef08a,
+  focus: 0x60a5fa,
+  momentum: 0xfbbf24,
+  adrenaline: 0xf87171,
+  bulwark: 0xd6d3d1,
+  greed: 0xfacc15,
+  harvest: 0x4ade80,
+  scholar: 0x93c5fd,
+  warlord: 0xc084fc,
+  mend: 0x34d399,
+  // Extended abilities
+  meteor: 0xff4500,
+  gravitywell: 0x9333ea,
+  soulbolts: 0x06b6d4,
+  bladestorm: 0x38bdf8,
+  arcanemine: 0xec4899,
+  bloodnova: 0xb91c1c,
+  voidrift: 0x7e22ce,
+  mirrors: 0x67e8f9,
+  wolfpack: 0xe2e8f0,
+  seismic: 0xb45309,
+  runeprison: 0x0ea5e9,
+  frostfire: 0x2dd4bf,
+  ward: 0x60a5fa,
+  overcharge: 0xfbbf24,
+  executioner: 0xbe123c,
+  berserker: 0xe11d48,
+  resilience: 0x94a3b8,
+  siphon: 0x10b981,
+  evasion: 0xa78bfa,
+  precision: 0x38bdf8,
+  conduit: 0x06b6d4,
+  detonation: 0xf97316,
+  fortunesfavor: 0xfacc15,
+  lifeforge: 0x14b8a6,
+  aegis: 0xfcd34d,
+  hemocraft: 0x991b1b,
+  celerity: 0x38bdf8,
+  deathsmark: 0x4c1d95,
+  soulharvest: 0x059669,
 }
 
 const ABILITY_IDS: AbilityId[] = [
@@ -94,10 +125,6 @@ export default function AbilityVFX() {
   const sigilRef = useRef<THREE.InstancedMesh>(null!)
   const coreRef = useRef<THREE.InstancedMesh>(null!)
   const trailRef = useRef<THREE.InstancedMesh>(null!)
-  const pulseRef = useRef<THREE.Mesh>(null!)
-  const ringRef = useRef<THREE.Mesh>(null!)
-  const slashRef = useRef<THREE.Mesh>(null!)
-  const dashRef = useRef<THREE.Mesh>(null!)
 
   const points = useMemo(() => {
     const positions = new Float32Array(MOTES * 3)
@@ -109,33 +136,30 @@ export default function AbilityVFX() {
   }, [])
 
   const texture = useMemo(() => {
-    const value = new THREE.CanvasTexture(makeSoftTexture())
-    value.colorSpace = THREE.SRGBColorSpace
-    return value
+    return plasmaOrbTexture()
   }, [])
 
   const moteMaterial = useMemo(() => new THREE.PointsMaterial({
-    size: 0.34,
+    size: 0.42,
     map: texture,
     vertexColors: true,
     transparent: true,
-    opacity: 0.88,
+    opacity: 0.92,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     sizeAttenuation: true,
   }), [texture])
 
-  const sigilGeometry = useMemo(() => new THREE.TorusGeometry(0.13, 0.018, 6, 18), [])
+  const sigilGeometry = useMemo(() => new THREE.OctahedronGeometry(0.09, 0), [])
   const coreGeometry = useMemo(() => new THREE.OctahedronGeometry(0.075, 0), [])
   const trailGeometry = useMemo(() => new THREE.IcosahedronGeometry(0.055, 0), [])
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const color = useMemo(() => new THREE.Color(), [])
-  const slashColor = useMemo(() => new THREE.Color(), [])
 
   const sigilMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.85,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   }), [])
@@ -205,7 +229,7 @@ export default function AbilityVFX() {
       dummy.updateMatrix()
       coreRef.current.setMatrixAt(abilityIndex, dummy.matrix)
 
-      color.setHex(ABILITY_PALETTE[id])
+      color.setHex(ABILITY_PALETTE[id] ?? 0xffa14d)
       sigilRef.current.setColorAt(abilityIndex, color)
       color.multiplyScalar(ACTIVE_IDS.has(id) ? 1.65 : 1.15)
       coreRef.current.setColorAt(abilityIndex, color)
@@ -242,39 +266,7 @@ export default function AbilityVFX() {
     if (sigilRef.current.instanceColor) sigilRef.current.instanceColor.needsUpdate = true
     if (coreRef.current.instanceColor) coreRef.current.instanceColor.needsUpdate = true
 
-    const intensity = Math.min(1, ownedCount / 10)
-    const primary = ABILITY_PALETTE[ABILITY_IDS.find((id) => abilities[id] > 0) ?? 'steel']
-    slashColor.setHex(primary)
-
-    const pulseMaterial = pulseRef.current.material as THREE.MeshBasicMaterial
-    pulseRef.current.position.set(p.x, 0.045, p.z)
-    pulseRef.current.scale.setScalar(0.78 + intensity * 0.35 + Math.sin(t * 6.5) * 0.05)
-    pulseMaterial.color.copy(slashColor)
-    pulseMaterial.opacity = Math.min(0.28, 0.055 + intensity * 0.075 + comboBoost * 0.11)
-
-    const ringMaterial = ringRef.current.material as THREE.MeshBasicMaterial
-    ringRef.current.position.set(p.x, 0.035, p.z)
-    ringRef.current.rotation.z += dt * (0.4 + ownedCount * 0.035)
-    ringRef.current.scale.setScalar(1.08 + Math.sin(t * 2.2) * 0.035)
-    ringMaterial.color.copy(slashColor)
-    ringMaterial.opacity = 0.08 + Math.min(0.16, ownedCount * 0.006)
-
-    const slash = Math.max(0, Math.min(1, gameState.slashAnim))
-    const slashMaterial = slashRef.current.material as THREE.MeshBasicMaterial
-    slashRef.current.position.set(p.x, 0.72, p.z)
-    slashRef.current.rotation.y = gameState.slashYaw
-    slashRef.current.scale.set(1.1 + (1 - slash) * 1.6, 0.45 + (1 - slash) * 0.45, 1)
-    slashMaterial.color.setHex(ABILITY_PALETTE.steel)
-    slashMaterial.opacity = slash > 0 ? Math.min(0.8, slash * 0.9 + 0.08) : 0
-
-    const dashing = (player.dashTime ?? 0) > 0
-    const dashMaterial = dashRef.current.material as THREE.MeshBasicMaterial
-    dashRef.current.position.set(p.x, 0.54, p.z)
-    dashRef.current.rotation.y = Math.atan2(player.velocity.x, player.velocity.z)
-    dashRef.current.scale.set(1.2 + speed * 0.16, dashing ? 1.7 : 0.45, 1)
-    dashMaterial.color.setHex(abilities.ghoststep > 0 ? ABILITY_PALETTE.ghoststep : ABILITY_PALETTE.swift)
-    dashMaterial.opacity = dashing ? Math.min(0.7, 0.25 + speed * 0.025) : Math.min(0.16, speed * 0.012)
-
+    const primary = ABILITY_PALETTE[ABILITY_IDS.find((id) => abilities[id] > 0) ?? 'steel'] ?? 0xffb15c
     const trailColor = color.setHex(primary)
     for (let i = 0; i < TRAILS; i++) {
       const f = i / TRAILS
@@ -301,26 +293,6 @@ export default function AbilityVFX() {
       <instancedMesh ref={sigilRef} args={[sigilGeometry, sigilMaterial, MAX_ABILITIES]} frustumCulled={false} />
       <instancedMesh ref={coreRef} args={[coreGeometry, coreMaterial, MAX_ABILITIES]} frustumCulled={false} />
       <instancedMesh ref={trailRef} args={[trailGeometry, trailMaterial, TRAILS]} frustumCulled={false} />
-
-      <mesh ref={pulseRef} position={[0, 0.045, 0]} rotation-x={-Math.PI / 2}>
-        <circleGeometry args={[1.3, 64]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
-      </mesh>
-
-      <mesh ref={ringRef} position={[0, 0.035, 0]} rotation-x={-Math.PI / 2}>
-        <torusGeometry args={[1.72, 0.022, 8, 72]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
-      </mesh>
-
-      <mesh ref={slashRef} position={[0, 0.72, 0]} rotation-x={-Math.PI / 2}>
-        <torusGeometry args={[0.82, 0.055, 8, 48, Math.PI * 1.35]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
-      </mesh>
-
-      <mesh ref={dashRef} position={[0, 0.54, 0]} rotation-x={Math.PI / 2}>
-        <planeGeometry args={[0.75, 2.8]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
-      </mesh>
     </group>
   )
 }

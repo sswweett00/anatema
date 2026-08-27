@@ -20,8 +20,8 @@ export const EASE = {
   outElastic: (t: number) => { if (t === 0 || t === 1) return t; const c4 = (2 * Math.PI) / 3; return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1 },
 } satisfies Record<string, Ease>
 
-export function finite(value: number, fallback = 0): number {
-  return Number.isFinite(value) ? value : fallback
+export function finite(value: number | undefined | null, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
 export function clamp01(value: number): number {

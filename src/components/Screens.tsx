@@ -193,7 +193,7 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
 
 /* ---------------- seviye atlama: yetenek seçimi ---------------- */
 
-const ABILITY_ICONS: Record<AbilityId, typeof Flame> = {
+const ABILITY_ICONS: Partial<Record<AbilityId, typeof Flame>> = {
   steel: Swords,
   arrows: Crosshair,
   nova: Flame,
@@ -294,7 +294,7 @@ export function LevelUpScreen() {
         <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
           {choices.map((id, i) => {
             const def = getDef(id)
-            const Icon = ABILITY_ICONS[id]
+            const Icon = ABILITY_ICONS[id] ?? Flame
             const cur = abilities[id]
             const active = def.type === 'AKTİF'
             return (

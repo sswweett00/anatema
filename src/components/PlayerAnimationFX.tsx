@@ -128,17 +128,6 @@ export default function PlayerAnimationFX() {
     feet.current.instanceMatrix.needsUpdate = true
     footMat.opacity = footOpacity
 
-    slash.current.position.set(player.position.x, 0.82, player.position.z)
-    slash.current.rotation.set(0, gameState.slashYaw, -Math.PI / 2)
-    const slashProgress = slashing ? 1 - gameState.slashAnim : 0
-    const slashPulse = Math.sin(Math.min(1, slashProgress) * Math.PI)
-    slash.current.scale.setScalar(0.78 + slashProgress * 0.5)
-    slashMat.opacity = slashing ? 0.4 * slashPulse : 0
-
-    landing.current.position.set(player.position.x, 0.035, player.position.z)
-    landing.current.scale.setScalar(0.8 + landingSpring.current * 2.7)
-    landingMat.opacity = landingSpring.current * 0.2
-
     const hasDashAfterimage = dash > 0 || (dash === 0 && previousDash.current > 0.001)
     color.setHex(abilitiesColor(player))
     ghostMat.color.copy(color)
@@ -170,11 +159,6 @@ export default function PlayerAnimationFX() {
       </mesh>
       <instancedMesh ref={ghosts} args={[afterGeo, ghostMat, AFTERIMAGES]} frustumCulled={false} />
       <instancedMesh ref={feet} args={[footGeo, footMat, FOOTSTEPS]} frustumCulled={false} />
-      <mesh ref={slash} geometry={slashGeo} material={slashMat} />
-      <mesh ref={landing} rotation-x={-Math.PI / 2}>
-        <ringGeometry args={[0.7, 0.76, 48]} />
-        <primitive object={landingMat} attach="material" />
-      </mesh>
       <AnimationVFXV4 />
     </group>
   )

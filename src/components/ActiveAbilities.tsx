@@ -4,7 +4,17 @@ import * as THREE from 'three'
 import { enemies, getPlayer, gameState, spawnBurst, type Entity } from '../ecs/world'
 import { sfx } from '../game/audio'
 import { pushDamage } from '../game/fx'
-import { softDotTexture, softRingTexture, boltTexture, firePoolTexture } from '../game/textures'
+import {
+  softDotTexture,
+  softRingTexture,
+  boltTexture,
+  firePoolTexture,
+  plasmaOrbTexture,
+  magicalRuneCircleTexture,
+  frostCrystalTexture,
+  vortexSpiralTexture,
+  crescentSlashTexture,
+} from '../game/textures'
 import {
   abilities,
   hasSynergy,
@@ -93,28 +103,33 @@ export default function ActiveAbilities() {
       ring: softRingTexture(),
       bolt: boltTexture(),
       fire: firePoolTexture(),
+      plasma: plasmaOrbTexture(),
+      rune: magicalRuneCircleTexture(),
+      frost: frostCrystalTexture(),
+      vortex: vortexSpiralTexture(),
+      slash: crescentSlashTexture(),
     }),
     []
   )
 
   const mats = useMemo(
     () => ({
-      chainCore: new THREE.MeshBasicMaterial({ color: '#cfeeff', toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }),
-      chainGlow: new THREE.MeshBasicMaterial({ color: '#3d9fd6', toneMapped: false, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }),
-      boltCore: new THREE.MeshBasicMaterial({ color: '#eaf6ff', map: tex.bolt, toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
-      boltGlow: new THREE.MeshBasicMaterial({ color: '#7db8ff', map: tex.dot, toneMapped: false, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
-      groundFlash: new THREE.MeshBasicMaterial({ color: '#bfe4ff', map: tex.dot, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
-      frostRing: new THREE.MeshBasicMaterial({ color: '#8fd8ff', map: tex.ring, toneMapped: false, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
-      frostFill: new THREE.MeshBasicMaterial({ color: '#4a9fd0', map: tex.dot, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
-      vortexRing: new THREE.MeshBasicMaterial({ color: '#ff9a4d', map: tex.ring, toneMapped: false, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
-      vortexFill: new THREE.MeshBasicMaterial({ color: '#d1662a', map: tex.dot, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
-      novaRing: new THREE.MeshBasicMaterial({ color: '#ff8a3d', map: tex.ring, toneMapped: false, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
-      novaFill: new THREE.MeshBasicMaterial({ color: '#d1662a', map: tex.dot, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
-      spike: new THREE.MeshStandardMaterial({ color: '#4a4038', roughness: 0.95, flatShading: true }),
-      spikeGlow: new THREE.MeshBasicMaterial({ color: '#ff9a4d', map: tex.dot, toneMapped: false, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }),
-      pyre: new THREE.MeshBasicMaterial({ color: '#ff8a3d', map: tex.fire, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
-      phantom: new THREE.MeshBasicMaterial({ color: '#cfe4ff', map: tex.dot, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
-      venom: new THREE.MeshBasicMaterial({ color: '#5fd068', map: tex.dot, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      chainCore: new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }),
+      chainGlow: new THREE.MeshBasicMaterial({ color: '#00e5ff', map: tex.dot, toneMapped: false, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
+      boltCore: new THREE.MeshBasicMaterial({ color: '#ffffff', map: tex.bolt, toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+      boltGlow: new THREE.MeshBasicMaterial({ color: '#38bdf8', map: tex.plasma, toneMapped: false, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
+      groundFlash: new THREE.MeshBasicMaterial({ color: '#7dd3fc', map: tex.rune, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      frostRing: new THREE.MeshBasicMaterial({ color: '#67e8f9', map: tex.frost, toneMapped: false, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
+      frostFill: new THREE.MeshBasicMaterial({ color: '#0284c7', map: tex.plasma, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      vortexRing: new THREE.MeshBasicMaterial({ color: '#ff7700', map: tex.vortex, toneMapped: false, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
+      vortexFill: new THREE.MeshBasicMaterial({ color: '#ea580c', map: tex.plasma, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      novaRing: new THREE.MeshBasicMaterial({ color: '#ff6b22', map: tex.rune, toneMapped: false, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
+      novaFill: new THREE.MeshBasicMaterial({ color: '#ff3d00', map: tex.plasma, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      spike: new THREE.MeshStandardMaterial({ color: '#292524', roughness: 0.7, metalness: 0.3, flatShading: true }),
+      spikeGlow: new THREE.MeshBasicMaterial({ color: '#f59e0b', map: tex.plasma, toneMapped: false, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }),
+      pyre: new THREE.MeshBasicMaterial({ color: '#ff5722', map: tex.fire, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      phantom: new THREE.MeshBasicMaterial({ color: '#a5b4fc', map: tex.slash, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+      venom: new THREE.MeshBasicMaterial({ color: '#22c55e', map: tex.plasma, toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
     }),
     [tex]
   )

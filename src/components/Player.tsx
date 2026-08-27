@@ -5,6 +5,7 @@ import { getPlayer, gameState, enemies, spawnBurst } from '../ecs/world'
 import { mergePainted as merge } from '../game/mergeGeo'
 import { useInput } from '../hooks/useInput'
 import { sfx } from '../game/audio'
+import { plasmaOrbTexture, magicalRuneCircleTexture } from '../game/textures'
 import {
   abilities,
   hasSynergy,
@@ -28,9 +29,9 @@ import {
  * Bacaklar yürür, pelerin dalgalanır, kılıç savrulur.
  */
 
-const CAM_OFFSET = new THREE.Vector3(21, 21, 21)
-const FORWARD = new THREE.Vector3(-0.7071, 0, -0.7071)
-const RIGHT = new THREE.Vector3(0.7071, 0, -0.7071)
+const CAM_OFFSET = new THREE.Vector3(0, 26, 18)
+const FORWARD = new THREE.Vector3(0, 0, -1)
+const RIGHT = new THREE.Vector3(1, 0, 0)
 
 /* ---------------- yardımcı: parça boyama ---------------- */
 
@@ -325,6 +326,8 @@ export default function Player() {
   const cloak = useRef<THREE.Mesh>(null!)
   const sword = useRef<THREE.Group>(null!)
   const embers = useRef<THREE.InstancedMesh>(null!)
+  const emberHalos = useRef<THREE.InstancedMesh>(null!)
+  const emberRings = useRef<THREE.InstancedMesh>(null!)
   const keys = useInput()
   const { camera, size } = useThree()
 
@@ -352,10 +355,38 @@ export default function Player() {
   )
   const emberMat = useMemo(
     () =>
-      new THREE.MeshBasicMaterial({ color: '#ff8a3d', toneMapped: false }),
+      new THREE.MeshBasicMaterial({ color: '#ffb366', toneMapped: false }),
+    []
+  )
+  const emberHaloMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: plasmaOrbTexture(),
+        color: '#ff7722',
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+      }),
+    []
+  )
+  const emberRingMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: magicalRuneCircleTexture(),
+        color: '#ffcc66',
+        transparent: true,
+        opacity: 0.75,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+      }),
     []
   )
   const emberGeo = useMemo(() => new THREE.OctahedronGeometry(1, 0), [])
+  const emberHaloGeo = useMemo(() => new THREE.PlaneGeometry(1, 1), [])
+  const emberRingGeo = useMemo(() => new THREE.PlaneGeometry(1, 1), [])
 
   const tmp = useMemo(
     () => ({
@@ -364,6 +395,8 @@ export default function Player() {
       camTarget: new THREE.Vector3(),
       menuPos: new THREE.Vector3(),
       dummy: new THREE.Object3D(),
+      dummyHalo: new THREE.Object3D(),
+      dummyRing: new THREE.Object3D(),
     }),
     []
   )
@@ -553,58 +586,74 @@ export default function Player() {
     body.current.rotation.x = stride * 0.08
     cloak.current.rotation.x = 0.26 + Math.sin(t * 9) * 0.06 * Math.max(stride, 0.25)
 
-    /* yörünge korları (instanced, tek draw-call) */
+    /* yörünge korları (instanced, 3 katmanlı parçacık sistemi) — Yalnızca yetenek açıksa gösterilir */
     const owned = abilities.orbit > 0
-    const visCount = owned ? orbitCount() : 8
-    const emberR = owned ? 1.35 : 0.95
-    const emberScale = owned ? 0.13 : 0.05
-    orbit.current.rotation.y = t * (owned ? 5 : 2.1)
+    const visCount = owned ? orbitCount() : 0
+    const emberR = 1.4 + (abilities.orbit > 1 ? 0.25 : 0)
+    const emberScale = 0.16
+    orbit.current.rotation.y = t * 4.2
+    
+    // Sinerji renk değişimi
+    if (hasSynergy('icefire')) {
+      emberMat.color.setHex(0x70e6ff)
+      emberHaloMat.color.setHex(0x38bdf8)
+      emberRingMat.color.setHex(0xa5f3fc)
+    } else if (abilities.storm > 0) {
+      emberMat.color.setHex(0xdbeafe)
+      emberHaloMat.color.setHex(0x60a5fa)
+      emberRingMat.color.setHex(0xbfdbfe)
+    } else {
+      emberMat.color.setHex(0xffcb77)
+      emberHaloMat.color.setHex(0xff6b2b)
+      emberRingMat.color.setHex(0xffaa44)
+    }
+
     for (let i = 0; i < emberAngles.length; i++) {
-      tmp.dummy.position.set(
-        Math.cos(emberAngles[i]) * emberR,
-        Math.sin(t * 3 + i) * 0.1,
-        Math.sin(emberAngles[i]) * emberR
-      )
-      const s = i < visCount ? emberScale * (1 + Math.sin(t * 6 + i) * 0.25) : 0.0001
+      if (!owned || i >= visCount) {
+        tmp.dummy.position.set(0, -999, 0)
+        tmp.dummy.scale.setScalar(0.00001)
+        tmp.dummy.updateMatrix()
+        embers.current.setMatrixAt(i, tmp.dummy.matrix)
+        emberHalos.current.setMatrixAt(i, tmp.dummy.matrix)
+        emberRings.current.setMatrixAt(i, tmp.dummy.matrix)
+        continue
+      }
+      const ex = Math.cos(emberAngles[i]) * emberR
+      const ey = Math.sin(t * 3.5 + i * 1.2) * 0.18
+      const ez = Math.sin(emberAngles[i]) * emberR
+
+      // 1. Kristal Çekirdek
+      tmp.dummy.position.set(ex, ey, ez)
+      const s = emberScale * (1 + Math.sin(t * 5 + i) * 0.2)
       tmp.dummy.scale.setScalar(s)
       tmp.dummy.rotation.set(t * 4 + i, t * 5, 0)
       tmp.dummy.updateMatrix()
       embers.current.setMatrixAt(i, tmp.dummy.matrix)
+
+      // 2. Parlayan Plazma Halesi (Billboard / kameraya dönük)
+      tmp.dummyHalo.position.set(ex, ey, ez)
+      tmp.dummyHalo.scale.setScalar(s * 4.5)
+      tmp.dummyHalo.rotation.set(-Math.PI / 2, 0, 0)
+      tmp.dummyHalo.updateMatrix()
+      emberHalos.current.setMatrixAt(i, tmp.dummyHalo.matrix)
+
+      // 3. Rünik Çember (Yatay dönen rün)
+      tmp.dummyRing.position.set(ex, ey - 0.02, ez)
+      tmp.dummyRing.scale.setScalar(s * 3.2)
+      tmp.dummyRing.rotation.set(-Math.PI / 2, 0, t * 3 + i)
+      tmp.dummyRing.updateMatrix()
+      emberRings.current.setMatrixAt(i, tmp.dummyRing.matrix)
     }
     embers.current.instanceMatrix.needsUpdate = true
+    emberHalos.current.instanceMatrix.needsUpdate = true
+    emberRings.current.instanceMatrix.needsUpdate = true
 
     /* ölünce yere seril */
     const fallen = gameState.phase === 'dead' ? Math.PI / 2.2 : 0
     group.current.rotation.x += (fallen - group.current.rotation.x) * Math.min(1, 5 * dt)
 
-    /* ================= kamera ================= */
+    /* ================= kamera referansı ================= */
     gameState.cam = camera /* hasar sayıları için dünya→ekran izdüşümü */
-    const cam = camera as THREE.OrthographicCamera
-    if (cam.isOrthographicCamera) {
-      const targetZoom = THREE.MathUtils.clamp(Math.min(size.width, size.height) / 16, 28, 60)
-      if (Math.abs(cam.zoom - targetZoom) > 0.05) {
-        cam.zoom = targetZoom
-        cam.updateProjectionMatrix()
-      }
-    }
-
-    if (gameState.phase === 'menu') {
-      tmp.menuPos.set(Math.sin(t * 0.12) * 19, 18, Math.cos(t * 0.12) * 19)
-      camera.position.lerp(tmp.menuPos, 1 - Math.exp(-1.2 * dt))
-      camera.lookAt(0, 0, 0)
-    } else {
-      tmp.camTarget.copy(p.position).add(CAM_OFFSET)
-      if (gameState.shake > 0) {
-        const s = gameState.shake
-        tmp.camTarget.x += (Math.random() - 0.5) * s * 1.2
-        tmp.camTarget.y += (Math.random() - 0.5) * s * 0.7
-        tmp.camTarget.z += (Math.random() - 0.5) * s * 1.2
-      }
-      camera.position.lerp(tmp.camTarget, 1 - Math.exp(-7 * dt))
-      tmp.look.copy(p.position)
-      tmp.look.y = 0
-      camera.lookAt(tmp.look)
-    }
   })
 
   return (
@@ -637,11 +686,21 @@ export default function Player() {
           <mesh geometry={swordGeo} material={swordMat} castShadow />
         </group>
 
-        {/* yörünge korları (tek instanced mesh) */}
+        {/* yörünge korları (3 katmanlı parçacık sistemi) */}
         <group ref={orbit} position={[0, 0.8, 0]}>
           <instancedMesh
             ref={embers}
             args={[emberGeo, emberMat, 8]}
+            frustumCulled={false}
+          />
+          <instancedMesh
+            ref={emberHalos}
+            args={[emberHaloGeo, emberHaloMat, 8]}
+            frustumCulled={false}
+          />
+          <instancedMesh
+            ref={emberRings}
+            args={[emberRingGeo, emberRingMat, 8]}
             frustumCulled={false}
           />
         </group>

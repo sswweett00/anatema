@@ -4,7 +4,18 @@ import * as THREE from 'three'
 import { enemies, getPlayer, gameState, spawnBurst, type Entity } from '../ecs/world'
 import { sfx } from '../game/audio'
 import { pushDamage } from '../game/fx'
-import { softDotTexture, softRingTexture, arcaneRuneTexture, vortexSpiralTexture, firePoolTexture } from '../game/textures'
+import {
+  softDotTexture,
+  softRingTexture,
+  arcaneRuneTexture,
+  vortexSpiralTexture,
+  firePoolTexture,
+  plasmaOrbTexture,
+  magicalRuneCircleTexture,
+  frostCrystalTexture,
+  bloodSigilTexture,
+  crescentSlashTexture,
+} from '../game/textures'
 import {
   abilities,
   hasSynergy,
@@ -102,7 +113,21 @@ export default function ExtendedActiveAbilities() {
   const frostfireAnim = useRef(0)
   const frostfireDir = useRef(new THREE.Vector3())
 
-  const tex = useMemo(() => ({ dot: softDotTexture(), ring: softRingTexture(), rune: arcaneRuneTexture(), vortex: vortexSpiralTexture(), fire: firePoolTexture() }), [])
+  const tex = useMemo(
+    () => ({
+      dot: softDotTexture(),
+      ring: softRingTexture(),
+      rune: magicalRuneCircleTexture(),
+      arcane: arcaneRuneTexture(),
+      vortex: vortexSpiralTexture(),
+      fire: firePoolTexture(),
+      plasma: plasmaOrbTexture(),
+      frost: frostCrystalTexture(),
+      blood: bloodSigilTexture(),
+      slash: crescentSlashTexture(),
+    }),
+    []
+  )
 
   useFrame((state, rawDt) => {
     const dt = Math.min(rawDt, 0.05)
@@ -463,20 +488,165 @@ export default function ExtendedActiveAbilities() {
 
   return (
     <group>
-      <group ref={meteorMesh} visible={false}><mesh><dodecahedronGeometry args={[1.4, 1]} /><meshStandardMaterial color="#ea580c" emissive="#ff3300" emissiveIntensity={2.5} roughness={0.3} /></mesh><mesh scale={1.6}><sphereGeometry args={[1.2, 16, 16]} /><meshBasicMaterial color="#ff7700" map={tex.dot} transparent opacity={0.7} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh></group>
-      <mesh ref={meteorTelegraph} visible={false} rotation-x={-Math.PI / 2}><planeGeometry args={[1, 1]} /><meshBasicMaterial map={tex.rune} color="#ff3311" transparent opacity={0.8} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh>
-      <mesh ref={meteorCrater} visible={false} rotation-x={-Math.PI / 2}><planeGeometry args={[1, 1]} /><meshBasicMaterial map={tex.fire} color="#ff4400" transparent opacity={0.75} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh>
-      <group ref={gravityMesh} visible={false}><mesh rotation-x={-Math.PI / 2}><planeGeometry args={[2.5, 2.5]} /><meshBasicMaterial map={tex.vortex} color="#c084fc" transparent opacity={0.95} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh><mesh><sphereGeometry args={[0.65, 16, 16]} /><meshBasicMaterial color="#1e1035" /></mesh></group>
-      {Array.from({ length: BOLT_COUNT }, (_, i) => <group key={`sb${i}`} ref={(el) => { soulBoltGroups.current[i] = el }} visible={false}><mesh><octahedronGeometry args={[0.28, 0]} /><meshBasicMaterial color="#67e8f9" toneMapped={false} /></mesh><mesh scale={2.2}><sphereGeometry args={[0.2, 8, 8]} /><meshBasicMaterial color="#38bdf8" map={tex.dot} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh></group>)}
-      <group ref={bladeStormGroup} visible={false}>{Array.from({ length: 6 }, (_, i) => { const angle = (i / 6) * Math.PI * 2; return <group key={`bs${i}`} position={[Math.cos(angle) * 2.4, 0.6, Math.sin(angle) * 2.4]} rotation={[0, -angle + Math.PI / 2, 0.4]}><mesh><boxGeometry args={[0.16, 0.04, 1.8]} /><meshBasicMaterial color="#bae6fd" toneMapped={false} /></mesh><mesh scale={[2.5, 1, 1.2]}><boxGeometry args={[0.16, 0.04, 1.8]} /><meshBasicMaterial color="#0284c7" transparent opacity={0.75} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh></group> })}</group>
-      {Array.from({ length: MINE_COUNT }, (_, i) => <group key={`am${i}`} ref={(el) => { mineMeshes.current[i] = el }} visible={false} rotation-x={-Math.PI / 2}><mesh><planeGeometry args={[1.2, 1.2]} /><meshBasicMaterial map={tex.rune} color="#c084fc" transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh></group>)}
-      <mesh ref={bloodNovaMesh} visible={false} rotation-x={-Math.PI / 2}><ringGeometry args={[0.7, 1, 32]} /><meshBasicMaterial color="#ef4444" map={tex.ring} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh>
-      <group ref={voidRiftMesh} visible={false}><mesh><planeGeometry args={[0.7, 3.2]} /><meshBasicMaterial color="#a855f7" map={tex.vortex} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh><mesh scale={1.8}><planeGeometry args={[0.7, 3.2]} /><meshBasicMaterial color="#7c3aed" map={tex.dot} transparent opacity={0.65} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh></group>
-      <group ref={mirrorMesh} visible={false}><mesh><capsuleGeometry args={[0.3, 0.9, 8, 16]} /><meshBasicMaterial color="#7dd3fc" transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh><mesh position={[0, 0.4, 0.7]} rotation={[0, 0.3, 0]}><boxGeometry args={[0.1, 0.04, 1.4]} /><meshBasicMaterial color="#bae6fd" transparent opacity={0.8} /></mesh></group>
-      {Array.from({ length: WOLF_COUNT }, (_, i) => <group key={`wolf${i}`} ref={(el) => { wolfGroups.current[i] = el }} visible={false}><mesh><boxGeometry args={[0.4, 0.35, 0.9]} /><meshBasicMaterial color="#4ade80" transparent opacity={0.75} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh><mesh position={[0, 0.2, 0.4]}><boxGeometry args={[0.28, 0.28, 0.35]} /><meshBasicMaterial color="#86efac" transparent opacity={0.9} /></mesh></group>)}
-      <group ref={seismicMesh} visible={false}><mesh rotation-x={-Math.PI / 2} position={[0, 0.05, 3]}><planeGeometry args={[3.5, 6]} /><meshBasicMaterial color="#d97706" map={tex.fire} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh></group>
-      <group ref={prisonMesh} visible={false}>{Array.from({ length: 4 }, (_, i) => { const a = (i / 4) * Math.PI * 2; return <mesh key={`p${i}`} position={[Math.cos(a) * 1.8, 1.8, Math.sin(a) * 1.8]}><cylinderGeometry args={[0.15, 0.15, 3.6, 8]} /><meshBasicMaterial color="#818cf8" transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh> })}</group>
-      <group ref={frostfireMesh} visible={false}><mesh position={[-0.3, 0, 0]}><sphereGeometry args={[0.38, 12, 12]} /><meshBasicMaterial color="#38bdf8" map={tex.dot} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh><mesh position={[0.3, 0, 0]}><sphereGeometry args={[0.38, 12, 12]} /><meshBasicMaterial color="#f97316" map={tex.dot} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh></group>
+      {/* METEOR */}
+      <group ref={meteorMesh} visible={false}>
+        <mesh>
+          <dodecahedronGeometry args={[1.4, 1]} />
+          <meshStandardMaterial color="#ea580c" emissive="#ff3300" emissiveIntensity={3.5} roughness={0.2} />
+        </mesh>
+        <mesh scale={2.0}>
+          <sphereGeometry args={[1.2, 16, 16]} />
+          <meshBasicMaterial color="#ff6600" map={tex.plasma} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} />
+        </mesh>
+      </group>
+      <mesh ref={meteorTelegraph} visible={false} rotation-x={-Math.PI / 2}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial map={tex.rune} color="#ff3311" transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={meteorCrater} visible={false} rotation-x={-Math.PI / 2}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial map={tex.fire} color="#ff4400" transparent opacity={0.75} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+
+      {/* GRAVITY WELL */}
+      <group ref={gravityMesh} visible={false}>
+        <mesh rotation-x={-Math.PI / 2}>
+          <planeGeometry args={[3.2, 3.2]} />
+          <meshBasicMaterial map={tex.vortex} color="#c084fc" transparent opacity={0.95} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh rotation-x={-Math.PI / 2} scale={1.2}>
+          <planeGeometry args={[2.8, 2.8]} />
+          <meshBasicMaterial map={tex.rune} color="#9333ea" transparent opacity={0.75} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh>
+          <sphereGeometry args={[0.7, 16, 16]} />
+          <meshBasicMaterial color="#0f051d" />
+        </mesh>
+      </group>
+
+      {/* SOUL BOLTS */}
+      {Array.from({ length: BOLT_COUNT }, (_, i) => (
+        <group key={`sb${i}`} ref={(el) => { soulBoltGroups.current[i] = el }} visible={false}>
+          <mesh>
+            <octahedronGeometry args={[0.3, 0]} />
+            <meshBasicMaterial color="#a5f3fc" toneMapped={false} />
+          </mesh>
+          <mesh scale={2.4}>
+            <planeGeometry args={[0.6, 0.6]} />
+            <meshBasicMaterial color="#06b6d4" map={tex.plasma} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* BLADESTORM */}
+      <group ref={bladeStormGroup} visible={false}>
+        {Array.from({ length: 6 }, (_, i) => {
+          const angle = (i / 6) * Math.PI * 2
+          return (
+            <group key={`bs${i}`} position={[Math.cos(angle) * 2.4, 0.6, Math.sin(angle) * 2.4]} rotation={[0, -angle + Math.PI / 2, 0.4]}>
+              <mesh>
+                <boxGeometry args={[0.18, 0.04, 2.0]} />
+                <meshBasicMaterial color="#e0f2fe" toneMapped={false} />
+              </mesh>
+              <mesh scale={[3.0, 1, 1.3]}>
+                <planeGeometry args={[0.8, 2.2]} />
+                <meshBasicMaterial color="#0284c7" map={tex.slash} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+              </mesh>
+            </group>
+          )
+        })}
+      </group>
+
+      {/* ARCANE MINES */}
+      {Array.from({ length: MINE_COUNT }, (_, i) => (
+        <group key={`am${i}`} ref={(el) => { mineMeshes.current[i] = el }} visible={false} rotation-x={-Math.PI / 2}>
+          <mesh>
+            <planeGeometry args={[1.5, 1.5]} />
+            <meshBasicMaterial map={tex.rune} color="#ec4899" transparent opacity={0.95} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0, 0, 0.2]}>
+            <octahedronGeometry args={[0.22, 0]} />
+            <meshBasicMaterial color="#fbcfe8" toneMapped={false} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* BLOOD NOVA */}
+      <mesh ref={bloodNovaMesh} visible={false} rotation-x={-Math.PI / 2}>
+        <planeGeometry args={[2.4, 2.4]} />
+        <meshBasicMaterial color="#dc2626" map={tex.blood} transparent opacity={0.95} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* VOID RIFT */}
+      <group ref={voidRiftMesh} visible={false}>
+        <mesh>
+          <planeGeometry args={[0.9, 3.8]} />
+          <meshBasicMaterial color="#c084fc" map={tex.vortex} transparent opacity={0.95} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh scale={1.8}>
+          <planeGeometry args={[0.9, 3.8]} />
+          <meshBasicMaterial color="#7c3aed" map={tex.plasma} transparent opacity={0.7} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
+
+      {/* MIRROR ILLUSIONS */}
+      <group ref={mirrorMesh} visible={false}>
+        <mesh>
+          <capsuleGeometry args={[0.3, 0.9, 8, 16]} />
+          <meshBasicMaterial color="#7dd3fc" transparent opacity={0.65} blending={THREE.AdditiveBlending} depthWrite={false} />
+        </mesh>
+        <mesh position={[0, 0.4, 0.7]} rotation={[0, 0.3, 0]}>
+          <boxGeometry args={[0.1, 0.04, 1.4]} />
+          <meshBasicMaterial color="#bae6fd" transparent opacity={0.85} />
+        </mesh>
+      </group>
+
+      {/* WOLF PACK */}
+      {Array.from({ length: WOLF_COUNT }, (_, i) => (
+        <group key={`wolf${i}`} ref={(el) => { wolfGroups.current[i] = el }} visible={false}>
+          <mesh>
+            <boxGeometry args={[0.4, 0.35, 0.9]} />
+            <meshBasicMaterial color="#4ade80" transparent opacity={0.8} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </mesh>
+          <mesh position={[0, 0.2, 0.4]}>
+            <boxGeometry args={[0.28, 0.28, 0.35]} />
+            <meshBasicMaterial color="#86efac" transparent opacity={0.9} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* SEISMIC WAVE */}
+      <group ref={seismicMesh} visible={false}>
+        <mesh rotation-x={-Math.PI / 2} position={[0, 0.05, 3]}>
+          <planeGeometry args={[4.2, 7.5]} />
+          <meshBasicMaterial color="#f59e0b" map={tex.fire} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
+
+      {/* RUNE PRISON */}
+      <group ref={prisonMesh} visible={false}>
+        {Array.from({ length: 4 }, (_, i) => {
+          const a = (i / 4) * Math.PI * 2
+          return (
+            <mesh key={`p${i}`} position={[Math.cos(a) * 1.8, 1.8, Math.sin(a) * 1.8]}>
+              <cylinderGeometry args={[0.16, 0.16, 3.6, 8]} />
+              <meshBasicMaterial color="#38bdf8" map={tex.arcane} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+            </mesh>
+          )
+        })}
+      </group>
+
+      {/* FROSTFIRE CRUCIBLE */}
+      <group ref={frostfireMesh} visible={false}>
+        <mesh position={[-0.35, 0, 0]}>
+          <sphereGeometry args={[0.42, 12, 12]} />
+          <meshBasicMaterial color="#38bdf8" map={tex.frost} transparent opacity={0.95} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh position={[0.35, 0, 0]}>
+          <sphereGeometry args={[0.42, 12, 12]} />
+          <meshBasicMaterial color="#f97316" map={tex.plasma} transparent opacity={0.95} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
     </group>
   )
 }

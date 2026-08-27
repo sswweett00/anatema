@@ -10,8 +10,8 @@ const MAX_PARTICLES = 900
 const MAX_LOOT = 96
 const MAX_STEP = 0.1
 
-function finite(value: number, fallback = 0): number {
-  return Number.isFinite(value) ? value : fallback
+function finite(value: number | undefined | null, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
 function sanitizeEntity(entity: Entity) {

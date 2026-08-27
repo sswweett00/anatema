@@ -232,32 +232,12 @@ export default function AnimationVFXV4() {
     const anim = getPlayerAnimationV4()
     const combat = getCombatAnimationV4()
     const director = getAnimationDirectorV4()
-    const energy = clamp01(anim.speed / 8 + combat.intensity * 0.2)
-
-    playerRing.current.position.set(player.position.x, 0.03, player.position.z)
-    playerRing.current.scale.setScalar(1 + anim.dashWeight * 0.4 + combat.reaction * 0.22)
-    playerRingMat.opacity = clamp01(0.05 + energy * 0.12 + combat.perfect * 0.18)
-
-    attackArc.current.position.set(player.position.x, 0.82 + anim.additiveY, player.position.z)
-    attackArc.current.rotation.set(-Math.PI / 2, anim.yaw + anim.shoulderYaw, 0)
-    const attack = clamp01(anim.attackWeight + combat.impact * 0.2)
-    attackArc.current.scale.setScalar(0.78 + attack * 0.65)
-    attackMat.opacity = clamp01(attack * 0.66 + combat.critical * 0.3)
-
-    dashRing.current.position.set(player.position.x, 0.035, player.position.z)
-    dashRing.current.scale.setScalar(0.9 + anim.dashWeight * 2.8)
-    dashRing.current.rotation.z = t * 2.2 + anim.yaw
-    dashMat.opacity = clamp01(anim.dashWeight * 0.72 + anim.trailIntensity * 0.14)
-
     const dead = gameState.phase === 'dead'
     deathRing.current.position.set(player.position.x, 0.035, player.position.z)
     const deathProgress = dead ? clamp01(combat.finisher + anim.deathWeight) : 0
     deathRing.current.scale.setScalar(1 + deathProgress * 4.2)
     deathMat.opacity = dead ? clamp01(0.05 + deathProgress * 0.32) : 0
 
-    if (director.globalMotion < 0.98) {
-      playerRing.current.rotation.z = Math.sin(t * 2) * 0.03
-    }
     pushPlayerTrail(player.position, anim.speed)
     if (lastPlayer.distanceToSquared(player.position) > 0.09) {
       if (anim.stride > 0.45 && (anim.footContactL > 0.85 || anim.footContactR > 0.85)) addFootprint(player.position, anim.yaw)
@@ -398,15 +378,6 @@ export default function AnimationVFXV4() {
 
   return (
     <group>
-      <mesh ref={playerRing} rotation-x={-Math.PI / 2} material={playerRingMat}>
-        <primitive object={ringGeo} attach="geometry" />
-      </mesh>
-      <mesh ref={attackArc} material={attackMat}>
-        <primitive object={attackGeo} attach="geometry" />
-      </mesh>
-      <mesh ref={dashRing} rotation-x={-Math.PI / 2} material={dashMat}>
-        <primitive object={dashGeo} attach="geometry" />
-      </mesh>
       <mesh ref={deathRing} rotation-x={-Math.PI / 2} material={deathMat}>
         <primitive object={deathGeo} attach="geometry" />
       </mesh>

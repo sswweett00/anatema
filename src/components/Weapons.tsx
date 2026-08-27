@@ -24,6 +24,7 @@ import {
 } from '../game/abilities'
 import { SpatialHash } from '../game/spatial'
 import { applyStatus } from '../game/status_runtime'
+import { crescentSlashTexture } from '../game/textures'
 
 const MAX_BULLETS = 320
 const WEAPON_RANGE = 22
@@ -34,7 +35,7 @@ const COLLISION_RADIUS = 1.45
 const _origin = new THREE.Vector3()
 const weaponSpatial = new SpatialHash(2.6)
 
-type Arc = { life: number; max: number }
+type Arc = { life: number; max: number; dx: number; dz: number }
 
 function applyWeaponStatuses(target: Entity, sourceElement: 'physical' | 'fire'): void {
   if (abilities.pyre > 0) applyStatus(target, 'burn', 1 + abilities.pyre * 0.18, sourceElement === 'fire' ? 'fire' : 'physical')
@@ -49,9 +50,11 @@ export default function Weapons() {
   const fireTimer = useRef(0)
   const slashTimer = useRef(0.5)
   const arcRefs = useRef<(THREE.Group | null)[]>([])
-  const arcs = useRef<Arc[]>(Array.from({ length: ARC_POOL }, () => ({ life: 0, max: 0.26 })))
+  const arcs = useRef<Arc[]>(Array.from({ length: ARC_POOL }, () => ({ life: 0, max: 0.28, dx: 0, dz: 1 })))
 
-  const { geo, mat } = useMemo(
+  const slashTex = useMemo(() => crescentSlashTexture(), [])
+
+  const { geo, mat, slashMat } = useMemo(
     () => ({
       geo: new THREE.OctahedronGeometry(0.15, 0),
       mat: new THREE.MeshBasicMaterial({
@@ -62,8 +65,18 @@ export default function Weapons() {
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
+      slashMat: new THREE.MeshBasicMaterial({
+        map: slashTex,
+        color: '#ffffff',
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        toneMapped: false,
+      }),
     }),
-    [],
+    [slashTex],
   )
 
   const tmp = useMemo(
@@ -138,24 +151,29 @@ export default function Weapons() {
           for (let i = 0; i < ARC_POOL; i++) {
             if (arcs.current[i].life <= 0) {
               arcs.current[i].life = arcs.current[i].max
+              arcs.current[i].dx = dx / dLen
+              arcs.current[i].dz = dz / dLen
               const g = arcRefs.current[i]
               if (g) {
                 g.visible = true
-                g.position.set(player.position.x, 0.5, player.position.z)
-                g.rotation.y = yaw
-                g.scale.setScalar(0.4)
+                g.position.set(
+                  player.position.x + (dx / dLen) * 0.8,
+                  0.35,
+                  player.position.z + (dz / dLen) * 0.8,
+                )
+                g.rotation.set(0, yaw, 0)
+                g.scale.setScalar(0.7)
               }
               break
             }
           }
 
-          gameState.shake = Math.min(1, gameState.shake + 0.2)
           sfx.slash()
           spawnBurst(
             _origin.set(
-              player.position.x + (dx / dLen) * 1.6,
+              player.position.x + (dx / dLen) * 1.5,
               0.4,
-              player.position.z + (dz / dLen) * 1.6,
+              player.position.z + (dz / dLen) * 1.5,
             ),
             0xffa14d,
             8,
@@ -253,9 +271,9 @@ export default function Weapons() {
       if (a.life > 0) {
         a.life -= dt
         const p = 1 - Math.max(0, a.life) / a.max
-        g.scale.setScalar(0.4 + p * 0.85)
+        g.scale.set(1.2 + p * 1.8, 1, 1.2 + p * 1.8)
         const m = (g.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial
-        m.opacity = Math.pow(1 - p, 1.4) * 0.85
+        m.opacity = Math.pow(1 - p, 1.2) * 0.95
         if (a.life <= 0) g.visible = false
       }
     }
@@ -266,9 +284,8 @@ export default function Weapons() {
       <instancedMesh ref={(m) => { meshRef.current = m! }} args={[geo, mat, MAX_BULLETS]} frustumCulled={false} />
       {Array.from({ length: ARC_POOL }, (_, i) => (
         <group key={i} visible={false} ref={(el) => { arcRefs.current[i] = el }}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[1.05, 3.15, 48, 1, -Math.PI / 2 - 1.0, 2.0]} />
-            <meshBasicMaterial color="#ffb15c" transparent opacity={0} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+          <mesh rotation={[-Math.PI / 2, 0, 0]} material={slashMat}>
+            <planeGeometry args={[4.2, 4.2]} />
           </mesh>
         </group>
       ))}

@@ -150,7 +150,7 @@ function sanitizeGlobalState(): void {
   gameState.shake = clampFinite(gameState.shake, 0, 0, 1)
   gameState.damageFlash = clampFinite(gameState.damageFlash, 0, 0, 1)
   gameState.levelFlash = clampFinite(gameState.levelFlash, 0, 0, 2)
-  gameState.wave = Math.trunc(clampFinite(gameState.wave, 0, 9999))
+  gameState.wave = Math.trunc(clampFinite(gameState.wave, 0, 0, 9999))
   gameState.waveTimer = clampFinite(gameState.waveTimer, 0, 0, 3600)
   gameState.flashNova = clampFinite(gameState.flashNova, 0, 0, 2)
   gameState.slashAnim = clampFinite(gameState.slashAnim, 0, 0, 2)
@@ -170,8 +170,10 @@ function sanitizeGlobalState(): void {
       cam.position.set(0, 12, 14)
       repaired++
     }
-    cam.near = clampFinite(cam.near, 0.01, 0.001, 100)
-    cam.far = Math.max(cam.near + 1, clampFinite(cam.far, 500, 10, 5000))
+    if (cam instanceof THREE.PerspectiveCamera || cam instanceof THREE.OrthographicCamera) {
+      cam.near = clampFinite(cam.near, 0.01, 0.001, 100)
+      cam.far = Math.max(cam.near + 1, clampFinite(cam.far, 500, 10, 5000))
+    }
   }
 
   // 59-61: ability state invariants.

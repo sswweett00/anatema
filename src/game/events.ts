@@ -27,6 +27,9 @@ export type GameplayEventMap = {
   'performance:pressure': { pressure: number; fps: number }
   'simulation:tick': { dt: number; time: number; steps: number }
   'runtime:error': { system: string; message: string }
+  'runtime:warning': { system: string; message: string }
+  'loot:acquire': { kind: string; rarity?: string }
+  'ability:evolution': { abilityId: string; evolutionId: string; level: number }
 }
 
 type Listener<T> = (event: T) => void

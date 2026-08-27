@@ -150,8 +150,13 @@ export const SYNERGIES: SynergyDef[] = [
   { id:'soulconduit', pair:['soulharvest','conduit'], name:'Ruh Ağı', desc:'Ruh yükleri elemental yayılım üretir.' },
 ]
 
-export const synLevel = (id: string): number => { const s = SYNERGIES.find((x) => x.id === id); return s ? Math.min(abilities[s.pair[0]], abilities[s.pair[1]]) : 0 }
-export const hasSynergy = (id: string) => synLevel(id) > 0
+export const synLevel = (id: string, secondId?: string): number => {
+  const s = secondId
+    ? SYNERGIES.find((x) => (x.pair[0] === id && x.pair[1] === secondId) || (x.pair[1] === id && x.pair[0] === secondId))
+    : SYNERGIES.find((x) => x.id === id)
+  return s ? Math.min(abilities[s.pair[0]], abilities[s.pair[1]]) : 0
+}
+export const hasSynergy = (id: string, secondId?: string) => synLevel(id, secondId) > 0
 export const ownedSynergies = () => SYNERGIES.filter((s) => synLevel(s.id) > 0)
 export const synScale = (id: string, base: number, per = 0.1): number => { const l = synLevel(id); return l > 0 ? base + per * (l - 1) : 1 }
 export function displayName(id: AbilityId): { label: string; syn: SynergyDef | null; synLvl: number } {
@@ -159,6 +164,42 @@ export function displayName(id: AbilityId): { label: string; syn: SynergyDef | n
   const syn = SYNERGIES.find((s) => s.pair.includes(id) && synLevel(s.id) > 0) ?? null
   return syn ? { label: syn.name, syn, synLvl: synLevel(syn.id) } : { label: base, syn: null, synLvl: 0 }
 }
+
+export const meteorDamage = () => (45 + abilities.meteor * 18) * (hasSynergy('meteorstorm') ? synScale('meteorstorm', 1.3, 0.1) : 1)
+export const meteorInterval = () => Math.max(1.8, (5.5 - abilities.meteor * 0.45) * haste())
+
+export const gravityDamage = () => (18 + abilities.gravitywell * 8) * (hasSynergy('voidgravity') ? synScale('voidgravity', 1.4, 0.1) : 1)
+export const gravityInterval = () => Math.max(2.2, (6.0 - abilities.gravitywell * 0.5) * haste())
+
+export const soulboltDamage = () => (14 + abilities.soulbolts * 6) * (hasSynergy('soulmirror') ? synScale('soulmirror', 1.3, 0.1) : 1)
+export const soulboltInterval = () => Math.max(0.6, (2.0 - abilities.soulbolts * 0.15) * haste())
+export const soulboltCount = () => Math.min(8, 2 + abilities.soulbolts)
+
+export const bladestormDamage = () => (16 + abilities.bladestorm * 7) * (hasSynergy('arcblade') ? synScale('arcblade', 1.3, 0.1) : 1)
+export const bladestormCount = () => Math.min(8, 2 + abilities.bladestorm)
+
+export const mineDamage = () => (28 + abilities.arcanemine * 12) * (hasSynergy('arcblade') ? synScale('arcblade', 1.3, 0.1) : 1)
+export const mineInterval = () => Math.max(1.2, (3.8 - abilities.arcanemine * 0.3) * haste())
+
+export const bloodnovaDamage = () => (22 + abilities.bloodnova * 10) * (hasSynergy('bloodfrost') ? synScale('bloodfrost', 1.3, 0.1) : 1)
+export const bloodnovaInterval = () => Math.max(2.5, (6.5 - abilities.bloodnova * 0.5) * haste())
+
+export const voidriftDamage = () => (15 + abilities.voidrift * 7) * (hasSynergy('voidgravity') ? synScale('voidgravity', 1.35, 0.1) : 1) * (hasSynergy('wolfrift') ? synScale('wolfrift', 1.25, 0.08) : 1)
+export const voidriftInterval = () => Math.max(2.8, (7.0 - abilities.voidrift * 0.55) * haste())
+
+export const mirrorsDamage = () => (12 + abilities.mirrors * 6) * (hasSynergy('soulmirror') ? synScale('soulmirror', 1.3, 0.1) : 1) * (hasSynergy('celeritymirror') ? synScale('celeritymirror', 1.25, 0.08) : 1)
+
+export const wolfpackDamage = () => (16 + abilities.wolfpack * 8) * (hasSynergy('wolfrift') ? synScale('wolfrift', 1.3, 0.1) : 1)
+export const wolfpackCount = () => Math.min(6, 1 + abilities.wolfpack)
+
+export const seismicDamage = () => (24 + abilities.seismic * 11) * (hasSynergy('seismicfrost') ? synScale('seismicfrost', 1.3, 0.1) : 1)
+export const seismicInterval = () => Math.max(1.4, (4.2 - abilities.seismic * 0.35) * haste())
+
+export const runeprisonDamage = () => (26 + abilities.runeprison * 12) * (hasSynergy('runefire') ? synScale('runefire', 1.35, 0.1) : 1)
+export const runeprisonInterval = () => Math.max(3.0, (8.0 - abilities.runeprison * 0.6) * haste())
+
+export const frostfireDamage = () => (20 + abilities.frostfire * 9) * (hasSynergy('bloodfrost') ? synScale('bloodfrost', 1.3, 0.1) : 1) * (hasSynergy('frostconduit') ? synScale('frostconduit', 1.25, 0.08) : 1)
+export const frostfireInterval = () => Math.max(1.2, (3.6 - abilities.frostfire * 0.3) * haste())
 
 export const ferocityDmg = () => abilities.ferocity * 6
 export const haste = () => {

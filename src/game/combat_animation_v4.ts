@@ -72,6 +72,7 @@ interface CombatState {
   chroma: Spring1D
   slowMo: Spring1D
   cameraKick: Spring3D
+  radialBurst: number
   impacts: ImpactEvent[]
   lastKills: number
   lastCombo: number
@@ -103,6 +104,7 @@ const state: CombatState = {
   chroma: new Spring1D(),
   slowMo: new Spring1D(),
   cameraKick: new Spring3D(),
+  radialBurst: 0,
   impacts: [],
   lastKills: 0,
   lastCombo: 0,

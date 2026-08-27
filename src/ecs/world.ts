@@ -37,6 +37,8 @@ export type Entity = {
   age?: number
   slow?: number
   burn?: number
+  bleed?: number
+  damageFlash?: number
   wisp?: boolean
   lastDmg?: number
   lastCrit?: boolean

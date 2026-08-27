@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run build"
   },

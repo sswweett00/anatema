@@ -84,8 +84,8 @@ const state: ExtensionState = {
 const tmp = new THREE.Vector3()
 const tmp2 = new THREE.Vector3()
 
-function finite(value: number, fallback = 0): number {
-  return Number.isFinite(value) ? value : fallback
+function finite(value: number | undefined | null, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
 function clamp(value: number, min: number, max: number): number {

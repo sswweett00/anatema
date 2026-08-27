@@ -20,7 +20,11 @@ export function initAudio() {
       master.connect(ctx.destination)
       startDrone()
     }
-    if (ctx.state === 'suspended') void ctx.resume()
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch((err) => {
+        console.warn('AudioContext resume postponed until user interaction:', err)
+      })
+    }
   } catch (err) {
     console.warn('WebAudio kullanılamıyor:', err)
   }

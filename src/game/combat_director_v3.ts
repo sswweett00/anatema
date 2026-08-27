@@ -36,8 +36,8 @@ let unsubscribeTick: Stop | undefined
 let pressureAccumulator = 0
 let milestoneGeneration = 0
 
-function finite(value: number, fallback = 0): number {
-  return Number.isFinite(value) ? value : fallback
+function finite(value: number | undefined | null, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
 function clamp(value: number, min: number, max: number): number {
