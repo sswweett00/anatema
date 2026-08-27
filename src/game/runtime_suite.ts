@@ -19,7 +19,6 @@ import { resetAbilityPassiveCompletion, startAbilityPassiveCompletion } from './
 import { resetQualityRuntime, startQualityRuntime } from './quality_runtime'
 import { resetRunCheckpoint, startRunCheckpoint } from './run_checkpoint'
 import { resetCheckpointPersistence, startCheckpointPersistence } from './checkpoint_persistence'
-import { resetEnemyBehaviorRuntime, startEnemyBehaviorRuntime } from './enemy_behavior_runtime'
 import { resetSimulationClock, startSimulationClock } from './simulation_clock'
 import { resetBiomeRuntime, startBiomeRuntime } from './biome_runtime'
 import { resetEnemyArchetypeRuntime, startEnemyArchetypeRuntime } from './enemy_archetype_runtime'
@@ -34,6 +33,7 @@ import { resetSkillMasteryRuntimeV3, startSkillMasteryRuntimeV3 } from './skill_
 import { resetCombatDirectorV3, startCombatDirectorV3 } from './combat_director_v3'
 import { resetPlayerAnimationV4, startPlayerAnimationV4 } from './player_animation_v4'
 import { resetEnemyAnimationV4, startEnemyAnimationV4 } from './enemy_animation_v4'
+import { resetEnemyPhysicsV4, startEnemyPhysicsV4 } from './enemy_physics_v4'
 import { resetCombatAnimationV4, startCombatAnimationV4 } from './combat_animation_v4'
 import { resetAnimationDirectorV4, startAnimationDirectorV4 } from './animation_director_v4'
 import { validateContentContract } from './content_contract'
@@ -54,6 +54,7 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'combat-director-v3', start: startCombatDirectorV3, reset: resetCombatDirectorV3 },
   { name: 'player-animation-v4', start: startPlayerAnimationV4, reset: resetPlayerAnimationV4 },
   { name: 'enemy-animation-v4', start: startEnemyAnimationV4, reset: resetEnemyAnimationV4 },
+  { name: 'enemy-physics-v4', start: startEnemyPhysicsV4, reset: resetEnemyPhysicsV4 },
   { name: 'combat-animation-v4', start: startCombatAnimationV4, reset: resetCombatAnimationV4 },
   { name: 'animation-director-v4', start: startAnimationDirectorV4, reset: resetAnimationDirectorV4 },
   { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
@@ -67,7 +68,6 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'ability-passive-completion', start: startAbilityPassiveCompletion, reset: resetAbilityPassiveCompletion },
   { name: 'status-effects', start: startStatusRuntime, reset: resetStatusRuntime },
   { name: 'boss-ai', start: startBossAI, reset: resetBossAI },
-  { name: 'enemy-behavior', start: startEnemyBehaviorRuntime, reset: resetEnemyBehaviorRuntime },
   { name: 'enemy-archetypes', start: startEnemyArchetypeRuntime, reset: resetEnemyArchetypeRuntime },
   { name: 'biomes', start: startBiomeRuntime, reset: resetBiomeRuntime },
   { name: 'relic-effects', start: startRelicEffectRuntime, reset: resetRelicEffectRuntime },
