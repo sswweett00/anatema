@@ -5,7 +5,7 @@ import { getEliteAffixes, getEliteShield } from './advanced_mechanics_v3'
 import { getEnemyAnimationV4 } from './enemy_animation_v4'
 import { getPlayerAnimationV4 } from './player_animation_v4'
 import { onSimulationTick } from './simulation_clock'
-import { clamp, clamp01, decay, finite, Spring1D, Spring3D, signedPulse, noiseSigned, radialFalloff } from './animation_math_v4'
+import { clamp, clamp01, finite, Spring1D, Spring3D, noiseSigned } from './animation_math_v4'
 
 type Stop = () => void
 export type CombatPresentation = 'neutral' | 'telegraph' | 'impact' | 'critical' | 'execute' | 'reaction' | 'parry' | 'perfect' | 'stagger' | 'finisher'
@@ -162,7 +162,7 @@ function detectCombat(player: Entity): void {
 
   const slash = gameState.slashAnim ?? 0
   if (slash > state.lastSlash + 0.04) {
-    state.attackTrigger(player)
+    attackTrigger(player)
   }
   state.lastSlash = slash
 }
@@ -179,8 +179,6 @@ function attackTrigger(player: Entity): void {
 }
 
 function scanTargets(): void {
-  const player = getPlayer()
-  if (!player) return
   for (const entity of enemies.entities) {
     if (entity.dead) continue
     const stateAnim = getEnemyAnimationV4(entity)
@@ -264,9 +262,9 @@ function update(dt: number): void {
   state.slowMo.update(baseSlow, 7, 0.85, dt)
 
   const chaos = noiseSigned(state.time * 2.3 + eliteCount * 9.3)
-  state.cameraKick.value.x = damp(state.cameraKick.value.x, chaos * state.shake.value * 0.04, 16, dt)
-  state.cameraKick.value.y = damp(state.cameraKick.value.y, impactEnvelope * 0.055, 18, dt)
-  state.cameraKick.value.z = damp(state.cameraKick.value.z, -state.critical.value * 0.04, 16, dt)
+  state.cameraKick.value.x = THREE.MathUtils.damp(state.cameraKick.value.x, chaos * state.shake.value * 0.04, 16, dt)
+  state.cameraKick.value.y = THREE.MathUtils.damp(state.cameraKick.value.y, impactEnvelope * 0.055, 18, dt)
+  state.cameraKick.value.z = THREE.MathUtils.damp(state.cameraKick.value.z, -state.critical.value * 0.04, 16, dt)
   state.cameraKick.velocity.multiplyScalar(Math.exp(-10 * dt))
 
   state.critical.value = clamp01(state.critical.value)
