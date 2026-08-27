@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getPlayer, gameState } from '../ecs/world'
+import AnimationVFXV4 from './AnimationVFXV4'
 
 const AFTERIMAGES = 6
 const FOOTSTEPS = 2
@@ -115,8 +116,9 @@ export default function PlayerAnimationFX() {
     for (let i = 0; i < FOOTSTEPS; i++) {
       const phase = footPhase.current + i * Math.PI
       const contact = Math.max(0, Math.sin(phase))
-      const x = Math.cos(i === 0 ? root.current.rotation.y + Math.PI / 2 : root.current.rotation.y - Math.PI / 2) * footSpread
-      const z = Math.cos(i === 0 ? root.current.rotation.y : root.current.rotation.y) * 0.07
+      const angle = root.current.rotation.y + (i === 0 ? Math.PI / 2 : -Math.PI / 2)
+      const x = Math.cos(angle) * footSpread
+      const z = Math.sin(angle) * footSpread
       dummy.position.set(player.position.x + x, 0.025, player.position.z + z)
       dummy.rotation.set(-Math.PI / 2, 0, root.current.rotation.y)
       dummy.scale.setScalar(0.45 + contact * 0.55)
@@ -173,6 +175,7 @@ export default function PlayerAnimationFX() {
         <ringGeometry args={[0.7, 0.76, 48]} />
         <primitive object={landingMat} attach="material" />
       </mesh>
+      <AnimationVFXV4 />
     </group>
   )
 }
