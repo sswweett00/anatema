@@ -21,11 +21,11 @@ const state: BudgetSnapshot = {
 
 let pressure = 0
 let lastFps = 60
-let timer = 0
 
 function updateFromPressure(dt: number): void {
+  const safeDt = Math.max(0, Math.min(0.25, dt))
   const target = Math.max(0, Math.min(1, (58 - lastFps) / 35))
-  pressure += (target - pressure) * Math.min(1, dt * 2.5)
+  pressure += (target - pressure) * Math.min(1, safeDt * 2.5)
 
   const quality = Math.max(0.35, 1 - pressure * 0.72)
   state.cpuBudget = quality
@@ -33,10 +33,12 @@ function updateFromPressure(dt: number): void {
   state.entityBudget = Math.floor(500 + 900 * quality)
   state.particleBudget = Math.floor(180 + 720 * quality)
   state.projectileBudget = Math.floor(80 + 240 * quality)
-  state.postFx = Math.max(0, quality > 0.75 ? 1 : quality > 0.55 ? 0.65 : 0.35)
+  state.postFx = quality > 0.75 ? 1 : quality > 0.55 ? 0.65 : 0.35
 
-  runtimeQuality.enemyScale = Math.min(runtimeQuality.enemyScale, Math.max(0.45, quality))
-  runtimeQuality.particleScale = Math.min(runtimeQuality.particleScale, Math.max(0.25, quality))
+  // A temporary frame-time spike must not permanently reduce runtime quality.
+  runtimeQuality.enemyScale = Math.max(0.45, quality)
+  runtimeQuality.particleScale = Math.max(0.25, quality)
+  runtimeQuality.particleUpdateHz = quality < 0.58 ? 30 : quality < 0.78 ? 45 : 60
 
   if (pressure > 0.78) {
     events.emit('performance:pressure', { pressure, fps: lastFps })
@@ -45,7 +47,6 @@ function updateFromPressure(dt: number): void {
 
 export function samplePerformance(fps: number, dt = 0.25): BudgetSnapshot {
   lastFps = Number.isFinite(fps) ? Math.max(1, Math.min(240, fps)) : 60
-  timer += Math.max(0, dt)
   updateFromPressure(dt)
   return state
 }
@@ -57,7 +58,6 @@ export function getPerformanceBudget(): Readonly<BudgetSnapshot> {
 export function resetPerformanceGovernor(): void {
   pressure = 0
   lastFps = 60
-  timer = 0
   Object.assign(state, {
     cpuBudget: 1,
     gpuBudget: 1,
@@ -65,5 +65,11 @@ export function resetPerformanceGovernor(): void {
     particleBudget: 900,
     projectileBudget: 320,
     postFx: 1,
+  })
+  Object.assign(runtimeQuality, {
+    enemyScale: 0.9,
+    particleScale: 0.7,
+    dpr: 1,
+    particleUpdateHz: 60,
   })
 }
