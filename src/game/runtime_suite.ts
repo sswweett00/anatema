@@ -32,6 +32,10 @@ import { resetAdvancedMechanicsV3Extensions, startAdvancedMechanicsV3Extensions 
 import { resetAdvancedMechanicsV3Refinements, startAdvancedMechanicsV3Refinements } from './advanced_mechanics_v3_refinements'
 import { resetSkillMasteryRuntimeV3, startSkillMasteryRuntimeV3 } from './skill_mastery_runtime_v3'
 import { resetCombatDirectorV3, startCombatDirectorV3 } from './combat_director_v3'
+import { resetPlayerAnimationV4, startPlayerAnimationV4 } from './player_animation_v4'
+import { resetEnemyAnimationV4, startEnemyAnimationV4 } from './enemy_animation_v4'
+import { resetCombatAnimationV4, startCombatAnimationV4 } from './combat_animation_v4'
+import { resetAnimationDirectorV4, startAnimationDirectorV4 } from './animation_director_v4'
 import { validateContentContract } from './content_contract'
 
 type Stop = () => void
@@ -48,6 +52,10 @@ const RUNTIMES: RuntimeSpec[] = [
   { name: 'advanced-mechanics-v3-refinements', start: startAdvancedMechanicsV3Refinements, reset: resetAdvancedMechanicsV3Refinements },
   { name: 'skill-mastery-v3', start: startSkillMasteryRuntimeV3, reset: resetSkillMasteryRuntimeV3 },
   { name: 'combat-director-v3', start: startCombatDirectorV3, reset: resetCombatDirectorV3 },
+  { name: 'player-animation-v4', start: startPlayerAnimationV4, reset: resetPlayerAnimationV4 },
+  { name: 'enemy-animation-v4', start: startEnemyAnimationV4, reset: resetEnemyAnimationV4 },
+  { name: 'combat-animation-v4', start: startCombatAnimationV4, reset: resetCombatAnimationV4 },
+  { name: 'animation-director-v4', start: startAnimationDirectorV4, reset: resetAnimationDirectorV4 },
   { name: 'event-bridge', start: startEventBridge, reset: resetEventBridge },
   { name: 'input-assist', start: startInputAssist, reset: resetInputAssist },
   { name: 'motion', start: startMotionRuntime, reset: resetMotionRuntime },
