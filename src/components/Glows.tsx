@@ -1,15 +1,15 @@
-import { useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { Bloom, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import { enemies, getPlayer } from '../ecs/world'
 
 /*
  * IŞIK BİRİKİNTİLERİ — sinematik karakter okunabilirliği + kontrollü bloom.
- * Geometry tabanlı glow'lar korunur; ek ışıklar karakter silüetini, metal
- * kenarlarını ve elite/boss ayrışmasını güçlendirir. Dinamik ışıklar gölge
- * üretmez, böylece yüksek kalite görünümünü ağır shadow-pass maliyeti olmadan
- * korur.
+ * Geometry glow'lar korunur. Standard yüzeyler tek seferlik olarak Physical
+ * materyallere yükseltilir; metalik zırh, kemik ve organik yüzeylerin highlight
+ * cevabı güçlenir. Dinamik ışıklar gölge üretmez, yüksek entity sayısında
+ * shadow-pass maliyetini büyütmeden karakter ayrışması sağlar.
  */
 
 function makeRadialTexture(): THREE.CanvasTexture {
@@ -42,7 +42,64 @@ const TORCH_SPOTS: [number, number][] = Array.from({ length: 6 }, (_, i) => {
 
 const ENEMY_LIGHT_BUDGET = 4
 
+function upgradeStandardMaterials(scene: THREE.Scene): () => void {
+  const replacements = new Map<string, THREE.MeshPhysicalMaterial>()
+  const touched: Array<{ mesh: THREE.Mesh; previous: THREE.Material | THREE.Material[]; next: THREE.Material | THREE.Material[] }> = []
+
+  scene.traverse((object) => {
+    const mesh = object as THREE.Mesh
+    const material = mesh.material
+    if (!material || Array.isArray(material) || !(material instanceof THREE.MeshStandardMaterial)) return
+    if (material instanceof THREE.MeshPhysicalMaterial) return
+
+    let physical = replacements.get(material.uuid)
+    if (!physical) {
+      physical = new THREE.MeshPhysicalMaterial({
+        color: material.color,
+        vertexColors: material.vertexColors,
+        map: material.map,
+        roughness: Math.max(0.12, material.roughness),
+        metalness: material.metalness,
+        normalMap: material.normalMap,
+        normalScale: material.normalScale,
+        bumpMap: material.bumpMap,
+        bumpScale: material.bumpScale,
+        aoMap: material.aoMap,
+        aoMapIntensity: material.aoMapIntensity,
+        emissive: material.emissive,
+        emissiveIntensity: material.emissiveIntensity,
+        emissiveMap: material.emissiveMap,
+        transparent: material.transparent,
+        opacity: material.opacity,
+        alphaTest: material.alphaTest,
+        side: material.side,
+        depthWrite: material.depthWrite,
+        flatShading: material.flatShading,
+        toneMapped: material.toneMapped,
+      })
+      physical.clearcoat = material.metalness > 0.65 ? 0.32 : material.roughness < 0.35 ? 0.18 : 0.05
+      physical.clearcoatRoughness = material.roughness < 0.3 ? 0.16 : 0.28
+      physical.sheen = material.roughness > 0.7 ? 0.08 : 0
+      replacements.set(material.uuid, physical)
+    }
+
+    touched.push({ mesh, previous: material, next: physical })
+    mesh.material = physical
+  })
+
+  return () => {
+    for (const item of touched) item.mesh.material = item.previous
+    const disposed = new Set<THREE.MeshPhysicalMaterial>()
+    for (const material of replacements.values()) {
+      if (disposed.has(material)) continue
+      disposed.add(material)
+      material.dispose()
+    }
+  }
+}
+
 export default function Glows() {
+  const { scene } = useThree()
   const torchRefs = useRef<(THREE.Mesh | null)[]>([])
   const playerGlow = useRef<THREE.Mesh>(null!)
   const centerGlow = useRef<THREE.Mesh>(null!)
@@ -52,6 +109,10 @@ export default function Glows() {
   const enemyLights = useRef<(THREE.PointLight | null)[]>([])
 
   const tex = useMemo(makeRadialTexture, [])
+
+  useEffect(() => upgradeStandardMaterials(scene), [scene])
+
+  useEffect(() => () => tex.dispose(), [tex])
 
   const mats = useMemo(
     () => ({
@@ -85,6 +146,12 @@ export default function Glows() {
     }),
     [tex],
   )
+
+  useEffect(() => () => {
+    mats.torch.dispose()
+    mats.player.dispose()
+    mats.center.dispose()
+  }, [mats])
 
   const seeds = useMemo(() => TORCH_SPOTS.map((_, i) => i * 1.7 + 0.4), [])
 
@@ -182,7 +249,6 @@ export default function Glows() {
         <Noise premultiply opacity={0.014} />
       </EffectComposer>
 
-      {/* Karakter ayrıştırma ışığı: gölge üretmez, yüksek entity sayısında güvenlidir. */}
       <pointLight ref={playerKey} color="#ffd3a3" distance={14} decay={2} />
       <pointLight ref={playerRim} color="#7faeff" distance={11} decay={2} />
       <pointLight ref={playerFill} color="#ffb06b" distance={10} decay={2} />
