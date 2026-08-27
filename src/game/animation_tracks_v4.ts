@@ -1,4 +1,4 @@
-import { EASE, Ease, clamp01, cubicBezier, hermite, lerpClamped, oscillateAround, remapClamped, scalarEnvelope, signedPulse, triangleWave } from './animation_math_v4'
+import { EASE, Ease, clamp01, lerpClamped, remapClamped, scalarEnvelope, signedPulse, triangleWave } from './animation_math_v4'
 
 export interface TrackKey {
   time: number
@@ -76,7 +76,7 @@ export function evaluateTrack(track: PoseTrack, time: number): number {
       const prev = track.keys[i - 1]
       const span = Math.max(0.0001, next.time - prev.time)
       const alpha = clamp01((local - prev.time) / span)
-      return lerpClamped(prev.value, next.value, next.ease ?? EASE.smooth)(alpha)
+      return lerpClamped(prev.value, next.value, (next.ease ?? EASE.smooth)(alpha))
     }
   }
   return track.keys[track.keys.length - 1].value
@@ -141,143 +141,67 @@ function locomotionTrack(): PoseTrack {
     duration: 0.64,
     loop: true,
     keys: [
-      key(0, -1),
-      key(0.08, -0.58),
-      key(0.16, 0),
-      key(0.24, 0.62),
-      key(0.32, 1),
-      key(0.4, 0.55),
-      key(0.48, 0),
-      key(0.56, -0.58),
-      key(0.64, -1),
+      key(0, -1), key(0.08, -0.58), key(0.16, 0), key(0.24, 0.62),
+      key(0.32, 1), key(0.4, 0.55), key(0.48, 0), key(0.56, -0.58), key(0.64, -1),
     ],
   }
 }
 
 function attackTrack(): PoseTrack {
   return {
-    id: 'attack',
-    duration: 0.34,
-    keys: [
-      key(0, 0),
-      key(0.04, -0.35, EASE.inOutCubic),
-      key(0.11, -1, EASE.outQuad),
-      key(0.18, 0.25, EASE.outBack),
-      key(0.24, 1),
-      key(0.29, 0.4),
-      key(0.34, 0, EASE.outQuad),
-    ],
+    id: 'attack', duration: 0.34,
+    keys: [key(0, 0), key(0.04, -0.35, EASE.inOutCubic), key(0.11, -1, EASE.outQuad), key(0.18, 0.25, EASE.outBack), key(0.24, 1), key(0.29, 0.4), key(0.34, 0, EASE.outQuad)],
   }
 }
 
 function dashTrack(): PoseTrack {
   return {
-    id: 'dash',
-    duration: 0.16,
-    keys: [
-      key(0, 0),
-      key(0.025, 0.35, EASE.outExpo),
-      key(0.07, 1, EASE.outBack),
-      key(0.12, 0.7),
-      key(0.16, 0, EASE.outQuad),
-    ],
+    id: 'dash', duration: 0.16,
+    keys: [key(0, 0), key(0.025, 0.35, EASE.outExpo), key(0.07, 1, EASE.outBack), key(0.12, 0.7), key(0.16, 0, EASE.outQuad)],
   }
 }
 
 function hurtTrack(): PoseTrack {
   return {
-    id: 'hurt',
-    duration: 0.22,
-    keys: [
-      key(0, 0),
-      key(0.035, 1, EASE.outQuad),
-      key(0.09, -0.42, EASE.outBack),
-      key(0.15, 0.18),
-      key(0.22, 0, EASE.outQuad),
-    ],
+    id: 'hurt', duration: 0.22,
+    keys: [key(0, 0), key(0.035, 1, EASE.outQuad), key(0.09, -0.42, EASE.outBack), key(0.15, 0.18), key(0.22, 0, EASE.outQuad)],
   }
 }
 
 function staggerTrack(): PoseTrack {
   return {
-    id: 'stagger',
-    duration: 0.6,
-    keys: [
-      key(0, 0),
-      key(0.08, -0.25, EASE.outQuad),
-      key(0.2, 0.4),
-      key(0.36, -0.18),
-      key(0.5, 0.1),
-      key(0.6, 0, EASE.outQuad),
-    ],
+    id: 'stagger', duration: 0.6,
+    keys: [key(0, 0), key(0.08, -0.25, EASE.outQuad), key(0.2, 0.4), key(0.36, -0.18), key(0.5, 0.1), key(0.6, 0, EASE.outQuad)],
   }
 }
 
 function deathTrack(): PoseTrack {
   return {
-    id: 'death',
-    duration: 1.7,
-    keys: [
-      key(0, 0),
-      key(0.12, 0.05, EASE.outQuad),
-      key(0.38, 0.45, EASE.inCubic),
-      key(0.78, 1, EASE.outCubic),
-      key(1.2, 0.88),
-      key(1.7, 1, EASE.outQuad),
-    ],
+    id: 'death', duration: 1.7,
+    keys: [key(0, 0), key(0.12, 0.05, EASE.outQuad), key(0.38, 0.45, EASE.inCubic), key(0.78, 1, EASE.outCubic), key(1.2, 0.88), key(1.7, 1, EASE.outQuad)],
   }
 }
 
 function castTrack(): PoseTrack {
   return {
-    id: 'cast',
-    duration: 1.15,
-    keys: [
-      key(0, 0),
-      key(0.24, 0.25, EASE.outQuad),
-      key(0.56, 0.8, EASE.smooth),
-      key(0.84, 1, EASE.outBack),
-      key(1.15, 0, EASE.outExpo),
-    ],
+    id: 'cast', duration: 1.15,
+    keys: [key(0, 0), key(0.24, 0.25, EASE.outQuad), key(0.56, 0.8, EASE.smooth), key(0.84, 1, EASE.outBack), key(1.15, 0, EASE.outExpo)],
   }
 }
 
-export const KNIGHT_PROFILE: PoseProfile = {
-  id: 'knight',
-  locomotion: locomotionTrack(),
-  attack: attackTrack(),
-  dash: dashTrack(),
-  hurt: hurtTrack(),
-  stagger: staggerTrack(),
-  death: deathTrack(),
-  cast: castTrack(),
-  idle: idleTrack(),
-}
+export const KNIGHT_PROFILE: PoseProfile = { id: 'knight', locomotion: locomotionTrack(), attack: attackTrack(), dash: dashTrack(), hurt: hurtTrack(), stagger: staggerTrack(), death: deathTrack(), cast: castTrack(), idle: idleTrack() }
+export const GOBLIN_PROFILE: PoseProfile = makeCreatureProfile('goblin', 1.2, 1.15)
+export const SKELETON_PROFILE: PoseProfile = makeCreatureProfile('skeleton', 0.74, 0.8)
+export const SLIME_PROFILE: PoseProfile = makeCreatureProfile('slime', 0.48, 0.55)
+export const ELITE_PROFILE: PoseProfile = makeCreatureProfile('elite', 0.68, 0.72)
+export const BOSS_PROFILE: PoseProfile = makeCreatureProfile('boss', 0.42, 0.5)
 
-export const GOBLIN_PROFILE: PoseProfile = makeCreatureProfile('goblin', 1.2, 1.15, 0.1)
-export const SKELETON_PROFILE: PoseProfile = makeCreatureProfile('skeleton', 0.74, 0.8, 0.03)
-export const SLIME_PROFILE: PoseProfile = makeCreatureProfile('slime', 0.48, 0.55, 0.14)
-export const ELITE_PROFILE: PoseProfile = makeCreatureProfile('elite', 0.68, 0.72, 0.07)
-export const BOSS_PROFILE: PoseProfile = makeCreatureProfile('boss', 0.42, 0.5, 0.045)
-
-function makeCreatureProfile(id: string, stride: number, attackScale: number, squash: number): PoseProfile {
+function makeCreatureProfile(id: string, stride: number, attackScale: number): PoseProfile {
   const locomotion = locomotionTrack()
   const attack = attackTrack()
   locomotion.keys.forEach((item) => { item.value *= stride })
   attack.keys.forEach((item) => { item.value *= attackScale })
-  const scale = scalarEnvelope(0, 0.05, 0, 0.4)
-  void scale
-  return {
-    id,
-    locomotion,
-    attack,
-    dash: dashTrack(),
-    hurt: hurtTrack(),
-    stagger: staggerTrack(),
-    death: deathTrack(),
-    cast: castTrack(),
-    idle: idleTrack(),
-  }
+  return { id, locomotion, attack, dash: dashTrack(), hurt: hurtTrack(), stagger: staggerTrack(), death: deathTrack(), cast: castTrack(), idle: idleTrack() }
 }
 
 export function sampleLocomotion(profile: PoseProfile, time: number, speed: number): PoseChannels {
@@ -420,20 +344,15 @@ export function sampleReactivePose(profile: PoseProfile, state: string, time: nu
 export function blendPose(a: PoseChannels, b: PoseChannels, weight: number): PoseChannels {
   const w = clamp01(weight)
   const result = emptyPose()
-  for (const key of Object.keys(result) as Array<keyof PoseChannels>) {
-    result[key] = blend(a[key], b[key], w)
-  }
+  for (const channel of Object.keys(result) as Array<keyof PoseChannels>) result[channel] = blend(a[channel], b[channel], w)
   return result
 }
 
 export function addPose(a: PoseChannels, b: PoseChannels, weight = 1): PoseChannels {
   const result = { ...a }
-  for (const key of Object.keys(result) as Array<keyof PoseChannels>) {
-    if (key.startsWith('scale')) {
-      result[key] *= lerpClamped(1, b[key], weight)
-    } else {
-      result[key] += b[key] * weight
-    }
+  for (const channel of Object.keys(result) as Array<keyof PoseChannels>) {
+    if (channel.startsWith('scale')) result[channel] *= lerpClamped(1, b[channel], weight)
+    else result[channel] += b[channel] * weight
   }
   return result
 }
@@ -441,35 +360,12 @@ export function addPose(a: PoseChannels, b: PoseChannels, weight = 1): PoseChann
 export function applyElementalPose(base: PoseChannels, element: string, intensity: number, time: number): PoseChannels {
   const result = { ...base }
   const i = clamp01(intensity)
-  if (element === 'fire') {
-    result.spinePitch += Math.sin(time * 7) * 0.04 * i
-    result.cloak += Math.sin(time * 9) * 0.11 * i
-  }
-  if (element === 'ice') {
-    result.spineRoll += Math.sin(time * 2.5) * 0.015 * i
-    result.headPitch -= 0.08 * i
-    result.scaleX *= 1 - i * 0.025
-    result.scaleY *= 1 + i * 0.018
-  }
-  if (element === 'shock') {
-    const jitter = signedPulse(time, 18) * i
-    result.headYaw += jitter * 0.05
-    result.armL += jitter * 0.08
-    result.armR -= jitter * 0.08
-  }
-  if (element === 'poison') {
-    result.rootY += Math.sin(time * 3.4) * 0.025 * i
-    result.rootZ += Math.sin(time * 2.2) * 0.035 * i
-  }
-  if (element === 'void') {
-    result.spineYaw += Math.sin(time * 1.8) * 0.07 * i
-    result.cloak += triangleWave(time, 0.8) * 0.1 * i
-  }
-  if (element === 'blood') {
-    result.spinePitch -= i * 0.05
-    result.armL += i * 0.08
-    result.armR -= i * 0.08
-  }
+  if (element === 'fire') { result.spinePitch += Math.sin(time * 7) * 0.04 * i; result.cloak += Math.sin(time * 9) * 0.11 * i }
+  if (element === 'ice') { result.spineRoll += Math.sin(time * 2.5) * 0.015 * i; result.headPitch -= 0.08 * i; result.scaleX *= 1 - i * 0.025; result.scaleY *= 1 + i * 0.018 }
+  if (element === 'shock') { const jitter = signedPulse(time, 18) * i; result.headYaw += jitter * 0.05; result.armL += jitter * 0.08; result.armR -= jitter * 0.08 }
+  if (element === 'poison') { result.rootY += Math.sin(time * 3.4) * 0.025 * i; result.rootZ += Math.sin(time * 2.2) * 0.035 * i }
+  if (element === 'void') { result.spineYaw += Math.sin(time * 1.8) * 0.07 * i; result.cloak += triangleWave(time, 0.8) * 0.1 * i }
+  if (element === 'blood') { result.spinePitch -= i * 0.05; result.armL += i * 0.08; result.armR -= i * 0.08 }
   return result
 }
 
@@ -492,13 +388,12 @@ export function proceduralAim(yawError: number, pitchError: number, weight: numb
   result.headPitch = remapClamped(pitchError, -Math.PI / 2, Math.PI / 2, -0.35, 0.35) * w
   result.spineYaw = result.headYaw * 0.32
   result.spinePitch = result.headPitch * 0.22
-  result.shoulder = 0
-  return result as PoseChannels
+  return result
 }
 
 export function proceduralTurn(yawVelocity: number, speed: number): PoseChannels {
   const result = emptyPose()
-  const turn = clamp(yawVelocity, -1.4, 1.4)
+  const turn = Math.max(-1.4, Math.min(1.4, yawVelocity))
   const weight = clamp01(speed / 6)
   result.spineYaw = turn * 0.18 * weight
   result.hipYaw = turn * 0.08 * weight
@@ -550,26 +445,11 @@ export function proceduralStatusPose(status: string, intensity: number, time: nu
   const i = clamp01(intensity)
   switch (status) {
     case 'stagger': return proceduralFlinch(i, Math.sign(Math.sin(time * 2)) || 1, time)
-    case 'frozen':
-      result.spinePitch = -0.06 * i
-      result.headPitch = -0.08 * i
-      result.scaleX = 1 - i * 0.02
-      result.scaleY = 1 + i * 0.025
-      return result
-    case 'burning':
-      result.rootY = Math.abs(Math.sin(time * 5.7)) * 0.025 * i
-      result.cloak = Math.sin(time * 7.2) * 0.14 * i
-      return result
-    case 'poisoned':
-      result.rootX = Math.sin(time * 2.8) * 0.025 * i
-      result.rootZ = Math.sin(time * 1.9) * 0.02 * i
-      return result
-    case 'shocked':
-      return proceduralFlinch(i, signedPulse(time, 14), time)
-    case 'void':
-      result.spineYaw = Math.sin(time * 2.2) * 0.08 * i
-      result.headRoll = Math.sin(time * 3.2) * 0.04 * i
-      return result
+    case 'frozen': result.spinePitch = -0.06 * i; result.headPitch = -0.08 * i; result.scaleX = 1 - i * 0.02; result.scaleY = 1 + i * 0.025; return result
+    case 'burning': result.rootY = Math.abs(Math.sin(time * 5.7)) * 0.025 * i; result.cloak = Math.sin(time * 7.2) * 0.14 * i; return result
+    case 'poisoned': result.rootX = Math.sin(time * 2.8) * 0.025 * i; result.rootZ = Math.sin(time * 1.9) * 0.02 * i; return result
+    case 'shocked': return proceduralFlinch(i, signedPulse(time, 14), time)
+    case 'void': result.spineYaw = Math.sin(time * 2.2) * 0.08 * i; result.headRoll = Math.sin(time * 3.2) * 0.04 * i; return result
     default: return result
   }
 }
